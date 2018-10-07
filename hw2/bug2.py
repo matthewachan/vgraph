@@ -1,27 +1,5 @@
 #!/usr/bin/env python
 
-""" odom_out_and_back.py - Version 1.1 2013-12-20
-
-    A basic demo of using the /odom topic to move a robot a given distance
-    or rotate through a given angle.
-
-    Created for the Pi Robot Project: http://www.pirobot.org
-    Copyright (c) 2012 Patrick Goebel.  All rights reserved.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.5
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details at:
-
-    http://www.gnu.org/licenses/gpl.html
-
-"""
-
 import math
 import rospy
 from geometry_msgs.msg import Twist, Point, Quaternion
@@ -64,50 +42,42 @@ class OutAndBack():
         # Init movement constants
         self.rate = 20
         self.r = rospy.Rate(self.rate)
-        self.linear_speed = 0.15
+        self.linear_speed = 0.50
         self.angular_speed = 0.5
         trace_dist = 0.2
         mline_thresh = 0.15
-
+        self.range_ahead = 1
+        self.range_right = 1
 
         # Set the angular tolerance in degrees converted to radians
         angular_tolerance = radians(1.0)
 
-        self.range_ahead = 1
-        self.range_right = 1
 
         # Get the starting position values     
         position = Point()
-        # Rotation is in degrees?
         (position, rotation) = self.get_odom()
 
-        start_pos = position
-        start_rot = rotation
         self.goal = Point()
         self.goal.x = 10
         self.goal.y = 0
         self.obstacle = Point()
-        sensor_thresh = 1000.0
         self.goal_thresh = 0.1
         rot_thresh = 0.01
 
         self.impossible = False
 
-
-
-
         # Loop until we reach the goal
-        while (self.impossible == False and self.at_goal(position, self.goal, self.goal_thresh) == False and not rospy.is_shutdown()):
+        while (self.impossible == False and self.at_point(position, self.goal, self.goal_thresh) == False and not rospy.is_shutdown()):
 
-            rospy.loginfo(rotation)
+            # rospy.loginfo(rotation)
             # Get new position and rotation
             (position, rotation) = self.get_odom()
-            rospy.loginfo("Robot at (" + str(position.x) + ", " + str(position.y) + ")")
+            # rospy.loginfo("Robot at (" + str(position.x) + ", " + str(position.y) + ")")
 
             # Check for obstacles
             if (self.range_ahead < 0.8):
                 rospy.loginfo("Obstacle encountered.")
-                rospy.loginfo(self.range_right)
+                # rospy.loginfo(self.range_right)
 
                 # Stop
                 self.cmd_vel.publish(Twist())
@@ -115,7 +85,7 @@ class OutAndBack():
                 # Store coordinates
                 self.obstacle = position
 
-                # Turn left until the rightmost sensor can't obstacle
+                # Turn left until the rightmost sensor can't sense the obstacle
                 rightmost = 0
                 for idx, reading in enumerate(self.ranges):
                     if (not math.isnan(reading)):
@@ -128,29 +98,30 @@ class OutAndBack():
                     self.r.sleep()
 
 
-                # Trace contour
+                # Trace contour of the obstacle
                 turned_left = False
                 self.iterations = 0
-                # Move forward to get off of the m-line
+
+                # Move forward a little bit to get off of the m-line
                 self.translate(0.5)
                 (position, rotation) = self.get_odom()
                 while (self.impossible == False and (position.x < self.obstacle.x or not self.on_mline(position, self.goal, self.goal_thresh)) and not rospy.is_shutdown()):
-                    
+
                     self.iterations += 1
-                    rospy.loginfo("Tracing contour of obstacle...")
-                    rospy.loginfo(self.range_right)
+                    # rospy.loginfo("Tracing contour of obstacle...")
+                    # rospy.loginfo(self.range_right)
 
                     # Turn right, if rightmost sensor cannot detect anything or detected object is far away
                     if (math.isnan(self.range_right) or self.range_right > 3.0):
-                        rospy.loginfo("[CONTOUR2] Turning right")
-                        rospy.loginfo(self.range_right)
+                        # rospy.loginfo("[CONTOUR2] Turning right")
+                        # rospy.loginfo(self.range_right)
 
                         self.rotate(-0.9)
 
                     # Turn left if object to close on righthand side, and move forward
                     if (self.range_right < 1.3 and not rospy.is_shutdown()):
-                        rospy.loginfo("[CONTOUR3] Turning left and moving forward")
-                        rospy.loginfo(self.range_right)
+                        # rospy.loginfo("[CONTOUR3] Turning left and moving forward")
+                        # rospy.loginfo(self.range_right)
 
                         # Turn left 
                         turned_left = True
@@ -168,9 +139,7 @@ class OutAndBack():
                     self.translate(0.40)
                     # Update position and rotation
                     (position, rotation) = self.get_odom()
-                    rospy.loginfo("Robot at (" + str(position.x) + ", " + str(position.y) + ")")
-
-                # break
+                    # rospy.loginfo("Robot at (" + str(position.x) + ", " + str(position.y) + ")")
 
             # Orient towards m-line
             # Robot rotated too far right
@@ -213,16 +182,19 @@ class OutAndBack():
         self.range_right = msg.ranges[0]
         self.ranges = msg.ranges
 
+    # Check whether the robot is on the m-line
     def on_mline(self, current, goal, threshold):
         if (current.y < goal.y + threshold and current.y > goal.y - threshold):
             return True
         return False
 
+    # Check if the robot is at a point in space
     def at_point(self, current, checkpoint, threshold):
         if (current.x < checkpoint.x + threshold and current.x > checkpoint.x - threshold and current.y < checkpoint.y + threshold and current.y > checkpoint.y - threshold):
             return True
         return False
 
+    # Translate the robot
     def translate(self, goal_distance):
         move_cmd = Twist()
 
@@ -231,7 +203,7 @@ class OutAndBack():
 
         # Move robot backwards
         if (goal_distance < 0):
-            move_cmd.linear.x *= -2
+            move_cmd.linear.x *= -1
 
         # How long should it take us to get there?
         linear_duration = abs(goal_distance / self.linear_speed)
@@ -241,23 +213,26 @@ class OutAndBack():
 
         for t in range(ticks):
             (position, rotation) = self.get_odom()
-            
+
+            # Check if the robot is on the m-line
             if (position.x > self.obstacle.x + 0.5 and self.on_mline(position, self.goal, self.goal_thresh)):
-                rospy.loginfo("Breaking translation")
+                # rospy.loginfo("Breaking translation")
                 break
+            # Check if the robot already reached this point
             elif (self.iterations > 5 and self.at_point(position, self.obstacle, 0.3)):
                 rospy.loginfo("No solution possible")
                 self.impossible = True
                 break
-                
+
             self.cmd_vel.publish(move_cmd)
             self.r.sleep()
 
-        # Stop the robot before the rotation
+        # Stop the robot
         move_cmd = Twist()
         self.cmd_vel.publish(move_cmd)
         rospy.sleep(1)
 
+    # Rotate the robot
     def rotate(self, goal_angle):
         move_cmd = Twist()
 
@@ -281,12 +256,6 @@ class OutAndBack():
         move_cmd = Twist()
         self.cmd_vel.publish(move_cmd)
         rospy.sleep(1)    
-
-    def at_goal(self, pos, goal, threshold):
-        if (pos.x <= goal.x + threshold and pos.x >= goal.x - threshold):
-            if (pos.y <= goal.y + threshold and pox.y >= goal.y - threshold):
-                return True
-        return False
 
     def shutdown(self):
         # Always stop the robot when shutting down the node.
