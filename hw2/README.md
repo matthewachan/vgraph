@@ -60,4 +60,4 @@ Start the Bug 2 TurtleBot simulation with the following commands (executed in di
 
 # Video
 
-   The YouTube link for a working demo of lab 2 is available at: [https://youtu.be/b9Ps7DrMPuw](https://youtu.be/b9Ps7DrMPuw)
+   The YouTube playlist link for all of the working demos from lab 2 are vailable at: [https://www.youtube.com/playlist?list=PLci6iiGYCad9-raUSciLgkWnBQ4kDFVyc](https://www.youtube.com/playlist?list=PLci6iiGYCad9-raUSciLgkWnBQ4kDFVyc)
