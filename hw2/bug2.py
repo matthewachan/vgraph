@@ -8,7 +8,7 @@ import tf
 from rbx1_nav.transform_utils import quat_to_angle, normalize_angle
 from math import radians, copysign, sqrt, pow, pi
 
-class OutAndBack():
+class Bug2():
     def __init__(self):
         # Give the node a name
         rospy.init_node('out_and_back', anonymous=False)
@@ -42,7 +42,7 @@ class OutAndBack():
         # Init movement constants
         self.rate = 20
         self.r = rospy.Rate(self.rate)
-        self.linear_speed = 0.50
+        self.linear_speed = 0.2
         self.angular_speed = 0.5
         trace_dist = 0.2
         mline_thresh = 0.15
@@ -265,6 +265,6 @@ class OutAndBack():
 
 if __name__ == '__main__':
     try:
-        OutAndBack()
+        Bug2()
     except:
-        rospy.loginfo("Out-and-Back node terminated.")
+        rospy.loginfo("Bug2 node terminated.")
