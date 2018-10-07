@@ -28,7 +28,7 @@ Start the Bug 2 TurtleBot simulation with the following commands (executed in di
 
 ## \_\_init\_\_
 
-   The `\_\_init\_\_` function sets up the ROS node and publishes to cmd\_vel in order to navigate the robot.
+   The `__init__` function sets up the ROS node and publishes to cmd\_vel in order to navigate the robot.
 
 ## get\_odom
 
@@ -40,11 +40,11 @@ Start the Bug 2 TurtleBot simulation with the following commands (executed in di
 
 ## on\_mline
 
-    This helper function checks whether the robot is currently on the m-line
+   This helper function checks whether the robot is currently on the m-line.
 
 ## at\_point
 
-    This helper function checks whether the robot is at a specific point in space
+   This helper function checks whether the robot is at a specific point in space.
 
 ## translate
 
