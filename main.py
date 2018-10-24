@@ -1,4 +1,5 @@
 import rospy
+import traceback
 import numpy as np
 import tf
 from geometry_msgs.msg import Twist, Point, Quaternion
@@ -37,7 +38,7 @@ class Vgraph():
     def __init__(self):
         rospy.init_node('vgraph', anonymous=False)
 
-        self.marker_pub = rospy.Publisher('vgraph_markers', Marker, queue_size=10)
+        self.marker_pub = rospy.Publisher('vgraph_markerarr', MarkerArray, queue_size=10)
         r = rospy.Rate(30)
 
 	obstacles = load_obstacles("../data/world_obstacles.txt")
@@ -46,6 +47,7 @@ class Vgraph():
 
         aabb_sidelen = 36
         half = aabb_sidelen / 2
+        num_obstacles = len(obstacles)
         for obstacle in obstacles:
             for coordinate in obstacle:
                 c1 = [coordinate[0] - half, coordinate[1] + half]
@@ -63,37 +65,54 @@ class Vgraph():
         # hull = ConvexHull(grown_obstacles[0])
         # rospy.loginfo(hull.vertices)
         scale_factor = 100.0
+        marker_arr = MarkerArray()
                 
 
         while (not rospy.is_shutdown()):
-            # rospy.loginfo("WOO")
-            m = Marker()
-            m.header.frame_id = 'base_link'
-            m.header.stamp = rospy.Time.now()
-            m.id = 0
-            m.ns = "ns1"
-            m.action = Marker.ADD;
-            m.pose.orientation.w = 1.0
 
-            m.type = Marker.POINTS
-            m.scale.x = 0.10
-            m.scale.y = 0.10
-            m.color.g = 1.0
-            m.color.a = 1.0
-            points = []
+            for idx, grown_obstacle in enumerate(grown_obstacles):
+                m = Marker()
+                m.header.frame_id = 'base_link'
+                m.header.stamp = rospy.Time.now()
+                m.id = idx
+                m.ns = "ns1"
+                m.action = Marker.ADD;
+                m.pose.orientation.w = 1.0
 
-            for grown_obstacle in grown_obstacles:
+                m.type = Marker.LINE_LIST
+                m.scale.x = 0.10
+                m.scale.y = 0.10
+                m.color.g = 1.0
+                m.color.a = 1.0
+                points = []
                 hull = ConvexHull(grown_obstacle)
-                for vertex in hull.vertices:
-                    p = Point()
-                    p.x = grown_obstacle[vertex][0] / scale_factor
-                    p.y = grown_obstacle[vertex][1] / scale_factor
-                    p.z = 0
-                    points.append(p)
-            m.points = points
+                num_points = len(hull.vertices)
+                vertices = hull.vertices
+                for i in xrange(0, num_points):
+                    # Append current vertex
+                    p1 = Point()
+                    p1.x = grown_obstacle[vertices[i]][0] / scale_factor
+                    p1.y = grown_obstacle[vertices[i]][1] / scale_factor
+                    p1.z = 0
+                    points.append(p1)
+                    # Append next vertex (or start vertex)
+                    p2 = Point()
+                    p2.x = 0
+                    p2.y = 0
+                    if (i == num_points - 1):
+                        p2.x = grown_obstacle[vertices[0]][0] / scale_factor
+                        p2.y = grown_obstacle[vertices[0]][1] / scale_factor
+                    else:
+                        p2.x = grown_obstacle[vertices[i + 1]][0] / scale_factor
+                        p2.y = grown_obstacle[vertices[i + 1]][1] / scale_factor
+                    p2.z = 0
+                    points.append(p2)
+
+                m.points = points
+                marker_arr.markers.append(m)
 
         
-            self.marker_pub.publish(m)
+            self.marker_pub.publish(marker_arr)
             r.sleep()
 
         # while not rospy.is_shutdown():
@@ -116,3 +135,5 @@ if __name__ == '__main__':
         Vgraph()
     except:
         rospy.loginfo("Node terminated")
+        traceback.print_exc()
+        
