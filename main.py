@@ -96,59 +96,61 @@ class Vgraph():
         marker_id = 0
         edges = []
 
-        while (not rospy.is_shutdown()):
+        # while (not rospy.is_shutdown()):
 
-            for idx, grown_obstacle in enumerate(grown_obstacles):
-                m = init_marker(marker_id)
-                marker_id += 1
-                points = []
-                hull = ConvexHull(grown_obstacle)
-                num_points = len(hull.vertices)
-                vertices = hull.vertices
-                for i in xrange(0, num_points):
-                    # Append current vertex
-                    p1 = Point()
-                    p1.x = grown_obstacle[vertices[i]][0] / scale_factor
-                    p1.y = grown_obstacle[vertices[i]][1] / scale_factor
-                    p1.z = 0
-                    # Append next vertex (or start vertex)
-                    p2 = Point()
-                    p2.x = 0
-                    p2.y = 0
-                    if (i == num_points - 1):
-                        p2.x = grown_obstacle[vertices[0]][0] / scale_factor
-                        p2.y = grown_obstacle[vertices[0]][1] / scale_factor
-                    else:
-                        p2.x = grown_obstacle[vertices[i + 1]][0] / scale_factor
-                        p2.y = grown_obstacle[vertices[i + 1]][1] / scale_factor
-                    p2.z = 0
-
-                    points.append(p1)
-                    points.append(p2)
-
-                    hull_verts.append(p1)
-                    hull_edges.append([p1, p2])
-
-                m.points = points
-                marker_arr.markers.append(m)
-
-            m = init_marker(marker_id)
-            marker_id += 1
+        m = init_marker(marker_id)
+        marker_id += 1
+        for idx, grown_obstacle in enumerate(grown_obstacles):
             points = []
-            for v1 in hull_verts:
-                for v2 in hull_verts:
-                    if (not vertsEqual(v1, v2)):
-                        points.append(v1)
-                        points.append(v2)
+            hull = ConvexHull(grown_obstacle)
+            num_points = len(hull.vertices)
+            vertices = hull.vertices
+            for i in xrange(0, num_points):
+                # Append current vertex
+                p1 = Point()
+                p1.x = grown_obstacle[vertices[i]][0] / scale_factor
+                p1.y = grown_obstacle[vertices[i]][1] / scale_factor
+                p1.z = 0
+                # Append next vertex (or start vertex)
+                p2 = Point()
+                p2.x = 0
+                p2.y = 0
+                if (i == num_points - 1):
+                    p2.x = grown_obstacle[vertices[0]][0] / scale_factor
+                    p2.y = grown_obstacle[vertices[0]][1] / scale_factor
+                else:
+                    p2.x = grown_obstacle[vertices[i + 1]][0] / scale_factor
+                    p2.y = grown_obstacle[vertices[i + 1]][1] / scale_factor
+                p2.z = 0
+
+                points.append(p1)
+                points.append(p2)
+
+                hull_verts.append(p1)
+                hull_edges.append([p1, p2])
+
             m.points = points
-            marker_arr.markers.append(m)
-            
-                       
+        marker_arr.markers.append(m)
 
-
+        m = init_marker(marker_id)
+        marker_id += 1
+        points = []
+        for v1 in hull_verts:
+            for v2 in hull_verts:
+                if (not vertsEqual(v1, v2)):
+                    points.append(v1)
+                    points.append(v2)
+        m.points = points
+        marker_arr.markers.append(m)
         
+        while (not rospy.is_shutdown()):
+            rospy.loginfo(marker_id)
             self.marker_pub.publish(marker_arr)
             r.sleep()
+                   
+
+
+    
 
         # while not rospy.is_shutdown():
         #     self.publish_marker()
