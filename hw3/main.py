@@ -304,65 +304,67 @@ class Vgraph():
         while prev[u] is not None:
             S.append(u)
             S.append(prev[u])
-            u = prev[u]
             waypoints.append(u)
+            u = prev[u]
             # if (vertsEqual(u, start)):
             #     break
 
         m = init_marker(marker_id, Marker.LINE_LIST)
         marker_id += 1
         m.points = S
-        m.scale.x = .1
-        m.scale.y = .1
+        m.scale.x = .05
+        m.scale.y = .05
         m.color.r = 1
         m.color.g = 0
         m.color.b = 0
         marker_arr.markers.append(m)
         rospy.loginfo("Retracing complete!")
-        rospy.loginfo(len(S))
+        rospy.loginfo(len(waypoints))
         
         self.marker_pub.publish(marker_arr)
         self.r.sleep()
-
-        # Walk to the first vertex
-        target = S[len(S) - 2]
-
-        move_cmd = Twist()
-	(position, rotation) = self.get_odom()
 
 	# Set the rotation speed in radians per second
         self.angular_speed = 0.5
         
         # Set the angular tolerance in degrees converted to radians
         self.angular_tolerance = math.radians(1.0)
-        
-        goal_angle = math.atan2(target.y - position.y, target.x - position.x)
-	goal_angle = rotation - goal_angle
-        rospy.loginfo(start)
-        rospy.loginfo(target)
-	rospy.loginfo(goal_angle)
-        
-        
-	self.rotate(goal_angle)
 
-	# Translate robot to target
-	
 	# Set the forward linear speed to 0.15 meters per second 
         self.linear_speed = 0.15
-	
 
-	# Get the starting position values     
-	(position, rotation) = self.get_odom()
-	
-	goal_distance = math.sqrt(math.pow((target.x - position.x), 2) + 
-		math.pow((target.y - position.y), 2))
-	
-	
-	
-	
-	self.translate(goal_distance)
+
+        for i in xrange(0, len(waypoints)):
+
+            target = waypoints[len(waypoints) - i - 1]
+            (position, rotation) = self.get_odom()
+
+            rospy.loginfo("START PT")
+            rospy.loginfo(position)
+            rospy.loginfo("END PT")
+            rospy.loginfo(target)
+
+            goal_angle = math.atan2(target.y - position.y, target.x - position.x)
+            rospy.loginfo("ATAN")
+            rospy.loginfo(goal_angle)
+            goal_angle = rotation - goal_angle
+            rospy.loginfo("CURRENT ROT")
+            rospy.loginfo(rotation)
+            rospy.loginfo("GOAL ANGLE")
+            rospy.loginfo(goal_angle)
+            
+            self.rotate(goal_angle)
+
+            # Get the starting position values     
+            (position, rotation) = self.get_odom()
+            
+            goal_distance = math.sqrt(math.pow((target.x - position.x), 2) + 
+                    math.pow((target.y - position.y), 2))
+            
+            self.translate(goal_distance)
         
         
+        rospy.loginfo("Traversal complete!")
         
         while (not rospy.is_shutdown()):
             self.marker_pub.publish(marker_arr)
@@ -406,6 +408,8 @@ class Vgraph():
     def rotate(self, goal_angle):
     	move_cmd = Twist()
     	move_cmd.angular.z = self.angular_speed
+        if (goal_angle > 0):
+            move_cmd.angular.z *= -1
 	
 	# Track the last angle measured
 	(position, rotation) = self.get_odom()
