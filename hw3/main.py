@@ -128,6 +128,7 @@ class Vgraph():
         rospy.on_shutdown(self.shutdown)
         
         self.marker_pub = rospy.Publisher('vgraph_markerarr', MarkerArray, queue_size=10)
+        self.cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
         r = rospy.Rate(30)
 	
 	# Initialize the tf listener
@@ -324,10 +325,12 @@ class Vgraph():
         angular_speed = 0.5
         
         # Set the angular tolerance in degrees converted to radians
-        angular_tolerance = radians(1.0)
+        angular_tolerance = math.radians(1.0)
         
         goal_angle = math.atan2(target.y - position.y, target.x - position.x)
 	goal_angle = rotation - goal_angle
+        rospy.loginfo(start)
+        rospy.loginfo(target)
 	rospy.loginfo(goal_angle)
         
         # Set the movement command to a rotation
@@ -340,7 +343,7 @@ class Vgraph():
 	# Track how far we have turned
 	turn_angle = 0
 
-	while abs(turn_a ngle + angular_tolerance) < abs(goal_angle) and not rospy.is_shutdown():
+	while abs(turn_angle + angular_tolerance) < abs(goal_angle) and not rospy.is_shutdown():
 		# Publish the Twist message and sleep 1 cycle         
 		self.cmd_vel.publish(move_cmd)
 		r.sleep()
@@ -366,20 +369,20 @@ class Vgraph():
             self.marker_pub.publish(marker_arr)
             r.sleep()
 	
-	def get_odom(self):
-		# Get the current transform between the odom and base frames
-		try:
-		    (trans, rot)  = self.tf_listener.lookupTransform(self.odom_frame, self.base_frame, rospy.Time(0))
-		except (tf.Exception, tf.ConnectivityException, tf.LookupException):
-		    rospy.loginfo("TF Exception")
-		    return
+    def get_odom(self):
+            # Get the current transform between the odom and base frames
+            try:
+                (trans, rot)  = self.tf_listener.lookupTransform(self.odom_frame, self.base_frame, rospy.Time(0))
+            except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+                rospy.loginfo("TF Exception")
+                return
 
-		return (Point(*trans), quat_to_angle(Quaternion(*rot)))
-	def shutdown(self):
-		# Always stop the robot when shutting down the node.
-		rospy.loginfo("Stopping the robot...")
-		self.cmd_vel.publish(Twist())
-		rospy.sleep(1)
+            return (Point(*trans), quat_to_angle(Quaternion(*rot)))
+    def shutdown(self):
+            # Always stop the robot when shutting down the node.
+            rospy.loginfo("Stopping the robot...")
+            self.cmd_vel.publish(Twist())
+            rospy.sleep(1)
 
 
 if __name__ == '__main__':
