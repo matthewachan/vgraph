@@ -6,6 +6,7 @@ from geometry_msgs.msg import Twist, Point, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from scipy.spatial import ConvexHull
 
+threshold = 0.6
 def load_obstacles(object_path):
 	'''
 	Function to load a list of obstacles.
@@ -72,8 +73,61 @@ def init_marker(marker_id):
         m.color.a = 1.0
         return m
 
+def orientation(a, b, c):
+    val = (a.y - b.y) * (c.x - b.x) - (a.x - b.x) * (c.y - b.y)
+    
+    if val == 0:
+        return 0
+    elif val > 0:
+        return 1
+    return 2
+
+def do_intersect(e1, e2):
+    a1 = e1[0]
+    a2 = e1[1]
+    b1 = e2[0]
+    b2 = e2[1]
+    o1 = orientation(a1, a2, b1)
+    o2 = orientation(a1, a2, b2)
+    o3 = orientation(b1, b2, a1)
+    o4 = orientation(b1, b2, a2)
+
+    if (vertsEqual(a1, b1) or vertsEqual(a1, b2) or vertsEqual(a2, b1) or vertsEqual(a2, b2)):
+        return False
+    if (o1 != o2 and o3 != o4):
+        return True
+    return False
+
+
 def vertsEqual(v1, v2):
     return (v1.x == v2.x and v1.y == v2.y) 
+
+def area(a, b, c):
+    return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
+def on_left(a, b, c):
+    return (area(a, b, c) > 0)
+
+def on_right(a, b, c):
+    return (area(a, b, c) < 0)
+
+def is_collinear(a, b, c):
+    return (area(a, b, c) < threshold and area(a, b, c) > -threshold)
+
+
+def has_intersection(e1, e2):
+    a1 = e1[0]
+    a2 = e1[1]
+    b1 = e2[0]
+    b2 = e2[1]
+    if (vertsEqual(a1, b1) or vertsEqual(a1, b2) or vertsEqual(a2, b1) or vertsEqual(a2, b2)):
+        return False
+    if ((on_left(a1, a2, b1) and on_right(a1, a2, b2)) or (on_right(a1, a2, b1) and on_left(a1, a2, b2))):
+        # rospy.loginfo("INTERSECTION")
+        # rospy.loginfo(e1)
+        # rospy.loginfo(e2)
+
+        return True 
+    return False 
 
 class Vgraph():
     def __init__(self):
@@ -100,11 +154,12 @@ class Vgraph():
 
         m = init_marker(marker_id)
         marker_id += 1
+        points = []
         for idx, grown_obstacle in enumerate(grown_obstacles):
-            points = []
             hull = ConvexHull(grown_obstacle)
             num_points = len(hull.vertices)
             vertices = hull.vertices
+            verts = []
             for i in xrange(0, num_points):
                 # Append current vertex
                 p1 = Point()
@@ -126,25 +181,51 @@ class Vgraph():
                 points.append(p1)
                 points.append(p2)
 
-                hull_verts.append(p1)
+                verts.append(p1)
                 hull_edges.append([p1, p2])
+            hull_verts.append(verts)
 
-            m.points = points
+        m.points = points
         marker_arr.markers.append(m)
 
         m = init_marker(marker_id)
         marker_id += 1
         points = []
-        for v1 in hull_verts:
-            for v2 in hull_verts:
-                if (not vertsEqual(v1, v2)):
-                    points.append(v1)
-                    points.append(v2)
+        for i in xrange(0, len(hull_verts) - 1):
+            for j in (xrange(i + 1, len(hull_verts))):
+                    for v1 in hull_verts[i]:
+                        for v2 in hull_verts[j]:
+                            flag = True
+                            for e in hull_edges:
+                                if (do_intersect(e, [v1, v2])):
+                                    flag = False
+                                    break
+                            if (flag):
+                                points.append(v1)
+                                points.append(v2)
+                    
+                        
+        # for v1 in hull_verts:
+            # for v2 in hull_verts:
+                # if (not vertsEqual(v1, v2)):
+                    # flag = True
+                    # if (v1 in hull_verts and v2 in hull_verts):
+                        # flag = False
+                    # # for e in hull_edges:
+                    # #     if (has_intersection(e, [v1, v2])):
+                    # #         flag = False
+                    # #         break
+                    # if (flag):
+                        # points.append(v1)
+                        # points.append(v2)
         m.points = points
         marker_arr.markers.append(m)
+
         
+        # rospy.loginfo(area(Point(1,1,0), Point(2,2,0), Point(1,2,0)))
+        # rospy.loginfo(area(Point(1,1,0), Point(2,2,0), Point(2,1,0)))
+        # rospy.loginfo(has_intersection([Point(1,1,0), Point(2,2,0)], [Point(1,2,0), Point(2,1,0)]))
         while (not rospy.is_shutdown()):
-            rospy.loginfo(marker_id)
             self.marker_pub.publish(marker_arr)
             r.sleep()
                    
