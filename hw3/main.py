@@ -113,7 +113,7 @@ def init_marker(marker_id, marker_type):
         Return:
                 True if they are equal, False otherwise
 '''
-def vertsEqual(v1, v2):
+def verts_equal(v1, v2):
     return (v1.x == v2.x and v1.y == v2.y) 
 
 '''
@@ -137,7 +137,7 @@ def orientation(a, b, c):
         Return:
                 True if they do intersect, otherwise False
 '''
-def do_intersect(e1, e2):
+def has_intersect(e1, e2):
     a1 = e1[0]
     a2 = e1[1]
     b1 = e2[0]
@@ -148,7 +148,7 @@ def do_intersect(e1, e2):
     o4 = orientation(b1, b2, a2)
 
     # If the two edges share a vertex, they are not colliding
-    if (vertsEqual(a1, b1) or vertsEqual(a1, b2) or vertsEqual(a2, b1) or vertsEqual(a2, b2)):
+    if (verts_equal(a1, b1) or verts_equal(a1, b2) or verts_equal(a2, b1) or verts_equal(a2, b2)):
         return False
     if (o1 != o2 and o3 != o4):
         return True
@@ -415,7 +415,7 @@ class Vgraph():
                         for v2 in self.hull_verts[j]:
                             flag = True
                             for e in self.hull_edges:
-                                if (do_intersect(e, [v1, v2])):
+                                if (has_intersect(e, [v1, v2])):
                                     flag = False
                                     break
                             if (flag):
@@ -462,12 +462,12 @@ class Vgraph():
 
             for edge in self.edges:
                 new_dist = smallest + compute_weight(edge)
-                if (vertsEqual(smallest_vert, edge[0])):
+                if (verts_equal(smallest_vert, edge[0])):
                     neighbor = edge[1]
                     if (new_dist < dist[neighbor]):
                         dist[neighbor] = new_dist
                         prev[neighbor] = smallest_vert
-                elif (vertsEqual(smallest_vert,  edge[1])):
+                elif (verts_equal(smallest_vert, edge[1])):
                     neighbor = edge[0]
                     if (new_dist < dist[neighbor]):
                         dist[neighbor] = new_dist
@@ -513,4 +513,3 @@ if __name__ == '__main__':
     except:
         rospy.loginfo("Node terminated")
         traceback.print_exc()
-        
