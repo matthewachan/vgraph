@@ -129,7 +129,7 @@ class Vgraph():
         
         self.marker_pub = rospy.Publisher('vgraph_markerarr', MarkerArray, queue_size=10)
         self.cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=5)
-        r = rospy.Rate(30)
+        self.r = rospy.Rate(30)
 	
 	# Initialize the tf listener
         self.tf_listener = tf.TransformListener()
@@ -206,6 +206,8 @@ class Vgraph():
 
         m.points = points
         marker_arr.markers.append(m)
+        self.marker_pub.publish(marker_arr)
+        self.r.sleep()
 
 	# Draw paths
         m = init_marker(marker_id, Marker.LINE_LIST)
@@ -240,6 +242,8 @@ class Vgraph():
         m.points = points
         marker_arr.markers.append(m)
         
+        self.marker_pub.publish(marker_arr)
+        self.r.sleep()
         
         # Compute weights on each edge
         weights = []
@@ -317,6 +321,9 @@ class Vgraph():
         rospy.loginfo("Retracing complete!")
         rospy.loginfo(len(S))
         
+        self.marker_pub.publish(marker_arr)
+        self.r.sleep()
+
         # Walk to the first vertex
         target = S[len(S) - 2]
 
@@ -343,9 +350,12 @@ class Vgraph():
 	# Set the forward linear speed to 0.15 meters per second 
         self.linear_speed = 0.15
 	
+
+	# Get the starting position values     
+	(position, rotation) = self.get_odom()
 	
-	goal_distance = sqrt(pow((target.x - x_start), 2) + 
-		pow((target.y - y_start), 2))
+	goal_distance = math.sqrt(math.pow((target.x - position.x), 2) + 
+		math.pow((target.y - position.y), 2))
 	
 	
 	
@@ -356,7 +366,7 @@ class Vgraph():
         
         while (not rospy.is_shutdown()):
             self.marker_pub.publish(marker_arr)
-            r.sleep()
+            self.r.sleep()
 
     def translate(self, goal_distance):
     	# Initialize the movement command
@@ -379,14 +389,14 @@ class Vgraph():
 		# Publish the Twist message and sleep 1 cycle         
 		self.cmd_vel.publish(move_cmd)
 
-		r.sleep()
+		self.r.sleep()
 
 		# Get the current position
 		(position, rotation) = self.get_odom()
 
 		# Compute the Euclidean distance from the start
-		distance = sqrt(pow((position.x - x_start), 2) + 
-				pow((position.y - y_start), 2))
+		distance = math.sqrt(math.pow((position.x - x_start), 2) + 
+				math.pow((position.y - y_start), 2))
 
 	# Stop the robot before the rotation
 	move_cmd = Twist()
@@ -407,7 +417,7 @@ class Vgraph():
 	while abs(turn_angle + self.angular_tolerance) < abs(goal_angle) and not rospy.is_shutdown():
 		# Publish the Twist message and sleep 1 cycle         
 		self.cmd_vel.publish(move_cmd)
-		r.sleep()
+		self.r.sleep()
 
 		# Get the current rotation
 		(position, rotation) = self.get_odom()
