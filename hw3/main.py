@@ -73,7 +73,7 @@ def grow_obstacles(obstacles):
 
 def init_marker(marker_id, marker_type):
         m = Marker()
-        m.header.frame_id = 'base_link'
+        m.header.frame_id = 'map'
         m.header.stamp = rospy.Time.now()
         m.id = marker_id
         m.ns = "ns1"
@@ -206,8 +206,8 @@ class Vgraph():
 
         m.points = points
         marker_arr.markers.append(m)
-        self.marker_pub.publish(marker_arr)
-        self.r.sleep()
+        # self.marker_pub.publish(marker_arr)
+        # self.r.sleep()
 
 	# Draw paths
         m = init_marker(marker_id, Marker.LINE_LIST)
@@ -242,8 +242,8 @@ class Vgraph():
         m.points = points
         marker_arr.markers.append(m)
         
-        self.marker_pub.publish(marker_arr)
-        self.r.sleep()
+        # self.marker_pub.publish(marker_arr)
+        # self.r.sleep()
         
         # Compute weights on each edge
         weights = []
@@ -312,14 +312,14 @@ class Vgraph():
         m = init_marker(marker_id, Marker.LINE_LIST)
         marker_id += 1
         m.points = S
-        m.scale.x = .05
-        m.scale.y = .05
+        m.scale.x = .03
+        m.scale.y = .03
         m.color.r = 1
         m.color.g = 0
         m.color.b = 0
         marker_arr.markers.append(m)
         rospy.loginfo("Retracing complete!")
-        rospy.loginfo(len(waypoints))
+        rospy.loginfo(S)
         
         self.marker_pub.publish(marker_arr)
         self.r.sleep()
@@ -328,7 +328,7 @@ class Vgraph():
         self.angular_speed = 0.5
         
         # Set the angular tolerance in degrees converted to radians
-        self.angular_tolerance = math.radians(1.0)
+        self.angular_tolerance = math.radians(0.1)
 
 	# Set the forward linear speed to 0.15 meters per second 
         self.linear_speed = 0.15
