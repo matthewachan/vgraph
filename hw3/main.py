@@ -5,6 +5,7 @@ import tf
 from geometry_msgs.msg import Twist, Point, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from scipy.spatial import ConvexHull
+import math
 
 
 '''
@@ -65,7 +66,7 @@ def grow_obstacles(obstacles):
         return np.asarray(grown_obstacles)
 
 
-def init_marker(marker_id):
+def init_marker(marker_id, marker_type):
         m = Marker()
         m.header.frame_id = 'base_link'
         m.header.stamp = rospy.Time.now()
@@ -74,9 +75,9 @@ def init_marker(marker_id):
         m.action = Marker.ADD;
         m.pose.orientation.w = 1.0
 
-        m.type = Marker.LINE_LIST
+        m.type = marker_type
         m.scale.x = 0.01
-        # m.scale.y = 0.10
+        m.scale.y = 0.01
         m.color.g = 1.0
         m.color.a = 1.0
         return m
@@ -112,7 +113,7 @@ def do_intersect(e1, e2):
 def compute_weight(e):
 	a = e[0]
 	b = e[1]
-	return sqrt((a.x - b.x)**2 + (a.y - b.y)**2)
+	return math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2)
 
 
 
@@ -140,7 +141,7 @@ class Vgraph():
         edges = []
 	
 	# Draw convex hulls around obstacles
-        m = init_marker(marker_id)
+        m = init_marker(marker_id, Marker.LINE_LIST)
         marker_id += 1
         
         points = []
@@ -180,11 +181,12 @@ class Vgraph():
         marker_arr.markers.append(m)
 
 	# Draw paths
-        m = init_marker(marker_id)
+        m = init_marker(marker_id, Marker.LINE_LIST)
         marker_id += 1
         
         
         points = []
+        verts = []
         start = Point(start[0] / scale_factor, start[1] / scale_factor, 0)
         goal = Point(goal[0] / scale_factor, goal[1] / scale_factor, 0)
         hull_verts.append([goal])
@@ -202,6 +204,8 @@ class Vgraph():
                             if (flag):
                                 points.append(v1)
                                 points.append(v2)
+                                verts.append(v1)
+                                verts.append(v2)
                                 edges.append([v1, v2])
                     
                         
@@ -212,22 +216,77 @@ class Vgraph():
         
         # Compute weights on each edge
         weights = []
+        edges = np.asarray(edges)
         for edge in edges:
-        	weights.append(compute_weights(edge))
+        	weights.append(compute_weight(edge))
 
-	dist = []
-	prev = []
+	dist = {}
+        temp_dist = []
+	prev = {}
 	Q = []
 	
-	for vertex in hull_verts:
-		dist.append(float("inf"))
-		prev.append(null)
+	for vertex in verts:
+		dist[vertex] = (float("inf"))
+                prev[vertex] = None
 		Q.append(vertex)
 
+        start_idx = verts.index(start)
+        dist[start] = 0
+
+        while len(Q) > 0:
+            smallest = float("inf")
+            smallest_vert = Q[0]
+            for vertex in Q:
+                if (dist[vertex] < smallest):
+                    smallest = dist[vertex]
+                    smallest_vert = vertex
+
+            Q.remove(smallest_vert)
+
+            # rospy.loginfo("Visiting ")
+            # rospy.loginfo(smallest_vert)
+
+            for edge in edges:
+                new_dist = smallest + compute_weight(edge)
+                # rospy.loginfo(edge[0])
+                # rospy.loginfo(hull_verts[min_idx])
+                if (vertsEqual(smallest_vert, edge[0])):
+                    neighbor = edge[1]
+                    if (new_dist < dist[neighbor]):
+                        dist[neighbor] = new_dist
+                        prev[neighbor] = smallest_vert
+                elif (vertsEqual(smallest_vert,  edge[1])):
+                    neighbor = edge[0]
+                    if (new_dist < dist[neighbor]):
+                        dist[neighbor] = new_dist
+                        prev[neighbor] = smallest_vert
+
+            
 
 
+        rospy.loginfo("Djikstra's complete!")
 
+        S = []
+        u = goal
 
+        while prev[u] is not None:
+            S.append(u)
+            S.append(prev[u])
+            u = prev[u]
+            # if (vertsEqual(u, start)):
+            #     break
+
+        m = init_marker(marker_id, Marker.LINE_LIST)
+        marker_id += 1
+        m.points = S
+        m.scale.x = .1
+        m.scale.y = .1
+        m.color.r = 1
+        m.color.g = 0
+        m.color.b = 0
+        marker_arr.markers.append(m)
+        rospy.loginfo("Retracing complete!")
+        rospy.loginfo(len(S))
         while (not rospy.is_shutdown()):
             self.marker_pub.publish(marker_arr)
             r.sleep()
