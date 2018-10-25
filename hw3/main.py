@@ -6,20 +6,17 @@ from geometry_msgs.msg import Twist, Point, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from scipy.spatial import ConvexHull
 
-def load_goal(goal_path):
-	with open(goal_path) as f:
-		line = f.readline()
-		goal = list(map(int, line.strip().split(' ')))
-	return goal
-def load_obstacles(object_path):
-	'''
+
+'''
 	Function to load a list of obstacles.
 	The obstacle txt file show points in clockwise order
 
 	Return:
 		3d list [[[1, 2], [3, 4], [5, 6]], 
 						[[7, 8], [9, 10], [10, 11]]]
-	'''
+'''	
+def load_obstacles(object_path):
+	
 	obstacles = []
 	obstacle = []
 	with open(object_path) as f:
@@ -38,6 +35,13 @@ def load_obstacles(object_path):
 	obstacles.append(obstacle)
 	assert len(obstacles)==numObstacles, "number of obstacles does not match the first line"
 	return obstacles
+
+def load_goal(goal_path):
+	with open(goal_path) as f:
+		line = f.readline()
+		goal = list(map(int, line.strip().split(' ')))
+	return goal
+
 
 def grow_obstacles(obstacles):
         grown_obstacles = []
@@ -76,6 +80,9 @@ def init_marker(marker_id):
         m.color.g = 1.0
         m.color.a = 1.0
         return m
+        
+def vertsEqual(v1, v2):
+    return (v1.x == v2.x and v1.y == v2.y) 
 
 def orientation(a, b, c):
     val = (a.y - b.y) * (c.x - b.x) - (a.x - b.x) * (c.y - b.y)
@@ -102,65 +109,42 @@ def do_intersect(e1, e2):
         return True
     return False
 
-
-def vertsEqual(v1, v2):
-    return (v1.x == v2.x and v1.y == v2.y) 
-
-def area(a, b, c):
-    return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)
-def on_left(a, b, c):
-    return (area(a, b, c) > 0)
-
-def on_right(a, b, c):
-    return (area(a, b, c) < 0)
-
-def is_collinear(a, b, c):
-    return (area(a, b, c) < threshold and area(a, b, c) > -threshold)
+def compute_weight(e):
+	a = e[0]
+	b = e[1]
+	return sqrt((a.x - b.x)**2 + (a.y - b.y)**2)
 
 
-def has_intersection(e1, e2):
-    a1 = e1[0]
-    a2 = e1[1]
-    b1 = e2[0]
-    b2 = e2[1]
-    if (vertsEqual(a1, b1) or vertsEqual(a1, b2) or vertsEqual(a2, b1) or vertsEqual(a2, b2)):
-        return False
-    if ((on_left(a1, a2, b1) and on_right(a1, a2, b2)) or (on_right(a1, a2, b1) and on_left(a1, a2, b2))):
-        # rospy.loginfo("INTERSECTION")
-        # rospy.loginfo(e1)
-        # rospy.loginfo(e2)
-
-        return True 
-    return False 
 
 class Vgraph():
     def __init__(self):
         rospy.init_node('vgraph', anonymous=False)
-
+        
         self.marker_pub = rospy.Publisher('vgraph_markerarr', MarkerArray, queue_size=10)
         r = rospy.Rate(30)
-
-	obstacles = load_obstacles("../data/world_obstacles.txt")
-	goal = load_goal("../data/goal.txt")
-	start = [0, 0]
 
         aabb_sidelen = 36
         half = aabb_sidelen / 2
         scale_factor = 100.0
 
+	obstacles = load_obstacles("../data/world_obstacles.txt")
         grown_obstacles = grow_obstacles(obstacles)
+	goal = load_goal("../data/goal.txt")
+	start = [0.0, 0.0]
 
         marker_arr = MarkerArray()
+        marker_id = 0
+        
         hull_edges = []
         hull_verts = [] 
-        marker_id = 0
         edges = []
-
-        # while (not rospy.is_shutdown()):
-
+	
+	# Draw convex hulls around obstacles
         m = init_marker(marker_id)
         marker_id += 1
+        
         points = []
+        
         for idx, grown_obstacle in enumerate(grown_obstacles):
             hull = ConvexHull(grown_obstacle)
             num_points = len(hull.vertices)
@@ -191,17 +175,21 @@ class Vgraph():
                 hull_edges.append([p1, p2])
             hull_verts.append(verts)
 
-        start = Point(start[0] / scale_factor, start[1] / scale_factor, 0)
-        
-        goal = Point(goal[0] / scale_factor, goal[1] / scale_factor, 0)
-        hull_verts.append([goal])
-        hull_verts.append([start])
+
         m.points = points
         marker_arr.markers.append(m)
 
+	# Draw paths
         m = init_marker(marker_id)
         marker_id += 1
+        
+        
         points = []
+        start = Point(start[0] / scale_factor, start[1] / scale_factor, 0)
+        goal = Point(goal[0] / scale_factor, goal[1] / scale_factor, 0)
+        hull_verts.append([goal])
+        hull_verts.append([start])
+        
         for i in xrange(0, len(hull_verts) - 1):
             for j in (xrange(i + 1, len(hull_verts))):
                     for v1 in hull_verts[i]:
@@ -214,49 +202,35 @@ class Vgraph():
                             if (flag):
                                 points.append(v1)
                                 points.append(v2)
+                                edges.append([v1, v2])
                     
                         
-        # for v1 in hull_verts:
-            # for v2 in hull_verts:
-                # if (not vertsEqual(v1, v2)):
-                    # flag = True
-                    # if (v1 in hull_verts and v2 in hull_verts):
-                        # flag = False
-                    # # for e in hull_edges:
-                    # #     if (has_intersection(e, [v1, v2])):
-                    # #         flag = False
-                    # #         break
-                    # if (flag):
-                        # points.append(v1)
-                        # points.append(v2)
+
         m.points = points
         marker_arr.markers.append(m)
-
         
-        # rospy.loginfo(area(Point(1,1,0), Point(2,2,0), Point(1,2,0)))
-        # rospy.loginfo(area(Point(1,1,0), Point(2,2,0), Point(2,1,0)))
-        # rospy.loginfo(has_intersection([Point(1,1,0), Point(2,2,0)], [Point(1,2,0), Point(2,1,0)]))
+        
+        # Compute weights on each edge
+        weights = []
+        for edge in edges:
+        	weights.append(compute_weights(edge))
+
+	dist = []
+	prev = []
+	Q = []
+	
+	for vertex in hull_verts:
+		dist.append(float("inf"))
+		prev.append(null)
+		Q.append(vertex)
+
+
+
+
+
         while (not rospy.is_shutdown()):
             self.marker_pub.publish(marker_arr)
             r.sleep()
-                   
-
-
-    
-
-        # while not rospy.is_shutdown():
-        #     self.publish_marker()
-    # def draw(self, marker_publisher, text):
-    #     marker = Marker(
-    #             type=Marker.TEXT_VIEW_FACING,
-    #             id=0,
-    #             lifetime=rospy.Duration(1.5),
-    #             pose=Pose(Point(0.5, 0.5, 1.45), Quaternion(0, 0, 0, 1)),
-    #             scale=Vector3(0.06, 0.06, 0.06),
-    #             header=Header(frame_id='base_link'),
-    #             color=ColorRGBA(0.0, 1.0, 0.0, 0.8),
-    #             text=text)
-    #     marker_publisher.publish(marker)
 
 
 if __name__ == '__main__':
