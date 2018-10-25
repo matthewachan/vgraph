@@ -1,9 +1,14 @@
+#!/usr/bin/env python
+
+# ROS libs
 import rospy
-import traceback
-import numpy as np
 import tf
 from geometry_msgs.msg import Twist, Point, Quaternion
+from rbx1_nav.transform_utils import quat_to_angle, normalize_angle
 from visualization_msgs.msg import Marker, MarkerArray
+
+import traceback
+import numpy as np
 from scipy.spatial import ConvexHull
 import math
 
@@ -120,10 +125,31 @@ def compute_weight(e):
 class Vgraph():
     def __init__(self):
         rospy.init_node('vgraph', anonymous=False)
+        rospy.on_shutdown(self.shutdown)
         
         self.marker_pub = rospy.Publisher('vgraph_markerarr', MarkerArray, queue_size=10)
         r = rospy.Rate(30)
-
+	
+	# Initialize the tf listener
+        self.tf_listener = tf.TransformListener()
+        # Give tf some time to fill its buffer
+        rospy.sleep(2)
+        # Set the odom frame
+        self.odom_frame = '/odom'
+        
+        # Find out if the robot uses /base_link or /base_footprint
+        try:
+            self.tf_listener.waitForTransform(self.odom_frame, '/base_footprint', rospy.Time(), rospy.Duration(1.0))
+            self.base_frame = '/base_footprint'
+        except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+            try:
+                self.tf_listener.waitForTransform(self.odom_frame, '/base_link', rospy.Time(), rospy.Duration(1.0))
+                self.base_frame = '/base_link'
+            except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+                rospy.loginfo("Cannot find transform between /odom and /base_link or /base_footprint")
+                rospy.signal_shutdown("tf Exception")  
+        
+		
         aabb_sidelen = 36
         half = aabb_sidelen / 2
         scale_factor = 100.0
@@ -287,9 +313,73 @@ class Vgraph():
         marker_arr.markers.append(m)
         rospy.loginfo("Retracing complete!")
         rospy.loginfo(len(S))
+        
+        # Walk to the first vertex
+        target = S[len(S) - 2]
+
+        move_cmd = Twist()
+	(position, rotation) = self.get_odom()
+
+	# Set the rotation speed in radians per second
+        angular_speed = 0.5
+        
+        # Set the angular tolerance in degrees converted to radians
+        angular_tolerance = radians(1.0)
+        
+        goal_angle = math.atan2(target.y - position.y, target.x - position.x)
+	goal_angle = rotation - goal_angle
+	rospy.loginfo(goal_angle)
+        
+        # Set the movement command to a rotation
+        
+	move_cmd.angular.z = angular_speed
+
+	# Track the last angle measured
+	last_angle = rotation
+
+	# Track how far we have turned
+	turn_angle = 0
+
+	while abs(turn_a ngle + angular_tolerance) < abs(goal_angle) and not rospy.is_shutdown():
+		# Publish the Twist message and sleep 1 cycle         
+		self.cmd_vel.publish(move_cmd)
+		r.sleep()
+
+		# Get the current rotation
+		(position, rotation) = self.get_odom()
+
+		# Compute the amount of rotation since the last loop
+		delta_angle = normalize_angle(rotation - last_angle)
+
+		# Add to the running total
+		turn_angle += delta_angle
+		last_angle = rotation
+
+	# Stop the robot before the next leg
+	move_cmd = Twist()
+	self.cmd_vel.publish(move_cmd)
+	rospy.sleep(1)
+
+
+        
         while (not rospy.is_shutdown()):
             self.marker_pub.publish(marker_arr)
             r.sleep()
+	
+	def get_odom(self):
+		# Get the current transform between the odom and base frames
+		try:
+		    (trans, rot)  = self.tf_listener.lookupTransform(self.odom_frame, self.base_frame, rospy.Time(0))
+		except (tf.Exception, tf.ConnectivityException, tf.LookupException):
+		    rospy.loginfo("TF Exception")
+		    return
+
+		return (Point(*trans), quat_to_angle(Quaternion(*rot)))
+	def shutdown(self):
+		# Always stop the robot when shutting down the node.
+		rospy.loginfo("Stopping the robot...")
+		self.cmd_vel.publish(Twist())
+		rospy.sleep(1)
 
 
 if __name__ == '__main__':
