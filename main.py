@@ -6,7 +6,11 @@ from geometry_msgs.msg import Twist, Point, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from scipy.spatial import ConvexHull
 
-threshold = 0.6
+def load_goal(goal_path):
+	with open(goal_path) as f:
+		line = f.readline()
+		goal = list(map(int, line.strip().split(' ')))
+	return goal
 def load_obstacles(object_path):
 	'''
 	Function to load a list of obstacles.
@@ -137,6 +141,8 @@ class Vgraph():
         r = rospy.Rate(30)
 
 	obstacles = load_obstacles("../data/world_obstacles.txt")
+	goal = load_goal("../data/goal.txt")
+	start = [0, 0]
 
         aabb_sidelen = 36
         half = aabb_sidelen / 2
@@ -185,6 +191,11 @@ class Vgraph():
                 hull_edges.append([p1, p2])
             hull_verts.append(verts)
 
+        start = Point(start[0] / scale_factor, start[1] / scale_factor, 0)
+        
+        goal = Point(goal[0] / scale_factor, goal[1] / scale_factor, 0)
+        hull_verts.append([goal])
+        hull_verts.append([start])
         m.points = points
         marker_arr.markers.append(m)
 
