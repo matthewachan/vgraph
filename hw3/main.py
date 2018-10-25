@@ -295,11 +295,13 @@ class Vgraph():
 
         S = []
         u = goal
-
+	waypoints = []
+	
         while prev[u] is not None:
             S.append(u)
             S.append(prev[u])
             u = prev[u]
+            waypoints.append(u)
             # if (vertsEqual(u, start)):
             #     break
 
@@ -322,10 +324,10 @@ class Vgraph():
 	(position, rotation) = self.get_odom()
 
 	# Set the rotation speed in radians per second
-        angular_speed = 0.5
+        self.angular_speed = 0.5
         
         # Set the angular tolerance in degrees converted to radians
-        angular_tolerance = math.radians(1.0)
+        self.angular_tolerance = math.radians(1.0)
         
         goal_angle = math.atan2(target.y - position.y, target.x - position.x)
 	goal_angle = rotation - goal_angle
@@ -333,17 +335,76 @@ class Vgraph():
         rospy.loginfo(target)
 	rospy.loginfo(goal_angle)
         
-        # Set the movement command to a rotation
         
-	move_cmd.angular.z = angular_speed
+	self.rotate(goal_angle)
 
+	# Translate robot to target
+	
+	# Set the forward linear speed to 0.15 meters per second 
+        self.linear_speed = 0.15
+	
+	
+	goal_distance = sqrt(pow((target.x - x_start), 2) + 
+		pow((target.y - y_start), 2))
+	
+	
+	
+	
+	self.translate(goal_distance)
+        
+        
+        
+        while (not rospy.is_shutdown()):
+            self.marker_pub.publish(marker_arr)
+            r.sleep()
+
+    def translate(self, goal_distance):
+    	# Initialize the movement command
+	move_cmd = Twist()
+
+	# Set the movement command to forward motion
+	move_cmd.linear.x = self.linear_speed
+
+	# Get the starting position values     
+	(position, rotation) = self.get_odom()
+		
+	x_start = position.x
+	y_start = position.y
+
+	# Keep track of the distance traveled
+	distance = 0
+
+	# Enter the loop to move along a side
+	while distance < goal_distance and not rospy.is_shutdown():
+		# Publish the Twist message and sleep 1 cycle         
+		self.cmd_vel.publish(move_cmd)
+
+		r.sleep()
+
+		# Get the current position
+		(position, rotation) = self.get_odom()
+
+		# Compute the Euclidean distance from the start
+		distance = sqrt(pow((position.x - x_start), 2) + 
+				pow((position.y - y_start), 2))
+
+	# Stop the robot before the rotation
+	move_cmd = Twist()
+	self.cmd_vel.publish(move_cmd)
+	rospy.sleep(1)
+
+    def rotate(self, goal_angle):
+    	move_cmd = Twist()
+    	move_cmd.angular.z = self.angular_speed
+	
 	# Track the last angle measured
+	(position, rotation) = self.get_odom()
 	last_angle = rotation
 
 	# Track how far we have turned
 	turn_angle = 0
 
-	while abs(turn_angle + angular_tolerance) < abs(goal_angle) and not rospy.is_shutdown():
+	while abs(turn_angle + self.angular_tolerance) < abs(goal_angle) and not rospy.is_shutdown():
 		# Publish the Twist message and sleep 1 cycle         
 		self.cmd_vel.publish(move_cmd)
 		r.sleep()
@@ -363,12 +424,6 @@ class Vgraph():
 	self.cmd_vel.publish(move_cmd)
 	rospy.sleep(1)
 
-
-        
-        while (not rospy.is_shutdown()):
-            self.marker_pub.publish(marker_arr)
-            r.sleep()
-	
     def get_odom(self):
             # Get the current transform between the odom and base frames
             try:
