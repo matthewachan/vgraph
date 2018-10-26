@@ -13,4 +13,7 @@
 
   <!-- Start RViz -->
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find vgraph)/world.rviz" />
+
+  <!-- Run VGRAPH script -->
+  <node pkg="vgraph" type="main.py" name="vgraph" />
 </launch>
