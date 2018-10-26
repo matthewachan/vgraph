@@ -42,4 +42,4 @@ Return: A 2d array of vertices along the shortest path
 
 # Video
 
-The YouTube video for a working demo of lab 3 is available at: []()
+The YouTube video for a working demo of lab 3 is available at: [https://youtu.be/9vp4PJip-Vs](https://youtu.be/9vp4PJip-Vs)
