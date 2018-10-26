@@ -260,6 +260,7 @@ class Vgraph():
         
         
         points = []
+        verts = []
 
         start = Point(start[0] / scale_factor, start[1] / scale_factor, 0)
         goal = Point(goal[0] / scale_factor, goal[1] / scale_factor, 0)
