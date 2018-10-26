@@ -7,10 +7,10 @@ from geometry_msgs.msg import Twist, Point, Quaternion
 from rbx1_nav.transform_utils import quat_to_angle, normalize_angle
 from visualization_msgs.msg import Marker, MarkerArray
 
-import traceback
 import numpy as np
-from scipy.spatial import ConvexHull
 import math
+from scipy.spatial import ConvexHull # Lib for computing convex hulls
+import traceback # For debugging
 
 
 '''
@@ -42,13 +42,27 @@ def load_obstacles(object_path):
 	assert len(obstacles)==numObstacles, "number of obstacles does not match the first line"
 	return obstacles
 
+'''
+	Function to load the goal position.
+
+	Return:
+		2d list [x, y]
+'''	
 def load_goal(goal_path):
 	with open(goal_path) as f:
 		line = f.readline()
 		goal = list(map(int, line.strip().split(' ')))
 	return goal
 
+'''
+        Function that takes an array of obstacle vertices [[[x1, y1], [x2, y2]], [[x3, y3], 
+        [x4, y4]], ...] and grows them by the size of the robot.
 
+        This assumes that the robots origin is placed at the center of a 36x36cm square.
+
+        Return: 
+                3d list of grown obstacle points
+'''
 def grow_obstacles(obstacles):
         grown_obstacles = []
         grown_obstacle = []
@@ -70,7 +84,12 @@ def grow_obstacles(obstacles):
             grown_obstacle = []
         return np.asarray(grown_obstacles)
 
+'''
+        Utility function for initializing Markers
 
+        Return:
+                A marker with basic configuration parameters initialized
+'''
 def init_marker(marker_id, marker_type):
         m = Marker()
         m.header.frame_id = 'map'
@@ -86,10 +105,23 @@ def init_marker(marker_id, marker_type):
         m.color.g = 1.0
         m.color.a = 1.0
         return m
-        
-def vertsEqual(v1, v2):
+  
+'''
+        Utility function to check if two 2D points are equal
+
+        Return:
+                True if they are equal, False otherwise
+'''        
+def verts_equal(v1, v2):
     return (v1.x == v2.x and v1.y == v2.y) 
 
+
+'''
+        Utility function to check the orientation of three points.
+
+        Return:
+                0 if co-linear, 1 if CW, 2 if CCW
+'''
 def orientation(a, b, c):
     val = (a.y - b.y) * (c.x - b.x) - (a.x - b.x) * (c.y - b.y)
     
@@ -99,7 +131,14 @@ def orientation(a, b, c):
         return 1
     return 2
 
-def do_intersect(e1, e2):
+
+'''
+        Utility function to check if two edges intersect
+
+        Return:
+                True if they do intersect, otherwise False
+'''
+def has_intersect(e1, e2):
     a1 = e1[0]
     a2 = e1[1]
     b1 = e2[0]
@@ -109,12 +148,20 @@ def do_intersect(e1, e2):
     o3 = orientation(b1, b2, a1)
     o4 = orientation(b1, b2, a2)
 
-    if (vertsEqual(a1, b1) or vertsEqual(a1, b2) or vertsEqual(a2, b1) or vertsEqual(a2, b2)):
+    if (verts_equal(a1, b1) or verts_equal(a1, b2) or verts_equal(a2, b1) or verts_equal(a2, b2)):
         return False
     if (o1 != o2 and o3 != o4):
         return True
     return False
 
+
+'''
+        Utility function for Djikstra's algorithm to compute distance between
+        two points that form an edge.
+
+        Return:
+            The distance between the ends of the edge.
+'''
 def compute_weight(e):
 	a = e[0]
 	b = e[1]
@@ -206,8 +253,6 @@ class Vgraph():
 
         m.points = points
         marker_arr.markers.append(m)
-        # self.marker_pub.publish(marker_arr)
-        # self.r.sleep()
 
 	# Draw paths
         m = init_marker(marker_id, Marker.LINE_LIST)
@@ -215,7 +260,7 @@ class Vgraph():
         
         
         points = []
-        # verts = []
+
         start = Point(start[0] / scale_factor, start[1] / scale_factor, 0)
         goal = Point(goal[0] / scale_factor, goal[1] / scale_factor, 0)
         hull_verts.append([goal])
@@ -227,7 +272,7 @@ class Vgraph():
                         for v2 in hull_verts[j]:
                             flag = True
                             for e in hull_edges:
-                                if (do_intersect(e, [v1, v2])):
+                                if (has_intersect(e, [v1, v2])):
                                     flag = False
                                     break
                             if (flag):
@@ -242,9 +287,7 @@ class Vgraph():
         m.points = points
         marker_arr.markers.append(m)
         
-        # self.marker_pub.publish(marker_arr)
-        # self.r.sleep()
-        
+
         # Compute weights on each edge
         weights = []
         edges = np.asarray(edges)
@@ -274,28 +317,19 @@ class Vgraph():
 
             Q.remove(smallest_vert)
 
-            # rospy.loginfo("Visiting ")
-            # rospy.loginfo(smallest_vert)
-
             for edge in edges:
                 new_dist = smallest + compute_weight(edge)
-                # rospy.loginfo(edge[0])
-                # rospy.loginfo(hull_verts[min_idx])
-                if (vertsEqual(smallest_vert, edge[0])):
+                if (verts_equal(smallest_vert, edge[0])):
                     neighbor = edge[1]
                     if (new_dist < dist[neighbor]):
                         dist[neighbor] = new_dist
                         prev[neighbor] = smallest_vert
-                elif (vertsEqual(smallest_vert,  edge[1])):
+                elif (verts_equal(smallest_vert,  edge[1])):
                     neighbor = edge[0]
                     if (new_dist < dist[neighbor]):
                         dist[neighbor] = new_dist
                         prev[neighbor] = smallest_vert
 
-            
-
-
-        # rospy.loginfo("Djikstra's complete!")
 
         S = []
         u = goal
@@ -306,8 +340,7 @@ class Vgraph():
             S.append(prev[u])
             waypoints.append(u)
             u = prev[u]
-            # if (vertsEqual(u, start)):
-            #     break
+
 
         m = init_marker(marker_id, Marker.LINE_LIST)
         marker_id += 1
@@ -318,8 +351,7 @@ class Vgraph():
         m.color.g = 0
         m.color.b = 0
         marker_arr.markers.append(m)
-        # rospy.loginfo("Retracing complete!")
-        # rospy.loginfo(S)
+
         
         self.marker_pub.publish(marker_arr)
         self.r.sleep()
@@ -338,21 +370,8 @@ class Vgraph():
 
             target = waypoints[len(waypoints) - i - 1]
             (position, rotation) = self.get_odom()
-
-            # rospy.loginfo("START PT")
-            # rospy.loginfo(position)
-            # rospy.loginfo("END PT")
-            # rospy.loginfo(target)
-
             goal_angle = math.atan2(target.y - position.y, target.x - position.x)
-            # rospy.loginfo("ATAN")
-            # rospy.loginfo(goal_angle)
             goal_angle = rotation - goal_angle
-            # rospy.loginfo("CURRENT ROT")
-            # rospy.loginfo(rotation)
-            # rospy.loginfo("GOAL ANGLE")
-            # rospy.loginfo(goal_angle)
-            
             self.rotate(goal_angle)
 
             # Get the starting position values     
@@ -364,12 +383,15 @@ class Vgraph():
             self.translate(goal_distance)
         
         
-        # rospy.loginfo("Traversal complete!")
+
         
         while (not rospy.is_shutdown()):
             self.marker_pub.publish(marker_arr)
             self.r.sleep()
-
+    '''
+        Publish messages to the /cmd_vel topic to rotate the robot until it travels
+        the goal distance.
+    '''
     def translate(self, goal_distance):
     	# Initialize the movement command
 	move_cmd = Twist()
@@ -404,7 +426,10 @@ class Vgraph():
 	move_cmd = Twist()
 	self.cmd_vel.publish(move_cmd)
 	rospy.sleep(1)
-
+    '''
+        Publish messages to the /cmd_vel topic to rotate the robot until it reaches
+        the goal angle.
+    '''
     def rotate(self, goal_angle):
     	move_cmd = Twist()
     	move_cmd.angular.z = self.angular_speed
@@ -437,7 +462,12 @@ class Vgraph():
 	move_cmd = Twist()
 	self.cmd_vel.publish(move_cmd)
 	rospy.sleep(1)
-
+    '''
+        Function get the odometry of the robot.
+        
+        Return:
+                A tuple containing a Point() and a rotation (in radians).
+    '''
     def get_odom(self):
             # Get the current transform between the odom and base frames
             try:
@@ -447,6 +477,10 @@ class Vgraph():
                 return
 
             return (Point(*trans), quat_to_angle(Quaternion(*rot)))
+
+    '''
+        Shutdown function that stops the robot and logs info.
+    '''            
     def shutdown(self):
             # Always stop the robot when shutting down the node.
             rospy.loginfo("Stopping the robot...")
