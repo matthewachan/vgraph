@@ -71,19 +71,6 @@ def isIntersecting(e1, e2):
         return True
     return False
 
-# def growRRT(rrt, nodeList):
-
-# Points are tuples
-# class Point:
-#     def __init__(self, x, y):
-#         self.x = x
-#         self.y = y
-
-#     def getX(self):
-#         return self.x
-
-#     def getY(self):
-#         return self.y
 
 def build_obstacle_course(obstacle_path, ax):
     vertices = list()
@@ -118,7 +105,7 @@ def add_start_and_goal(start_goal_path, ax):
         start = tuple(map(int, f.readline().strip().split(' ')))
         goal  = tuple(map(int, f.readline().strip().split(' ')))
 
-    ax.add_patch(patches.Circle(start, facecolor='xkcd:bright green'))
+    ax.add_patch(patches.Circle(start, facecolor='xkcd:royal blue'))
     ax.add_patch(patches.Circle(goal, facecolor='xkcd:fuchsia'))
 
     return start, goal
@@ -168,6 +155,11 @@ if __name__ == "__main__":
     maxIters = 5000
     threshold = 20 # Threshold before trying to reach the goal in one step
 
+    pointColor = 'xkcd:bright green'
+    edgeColor = 'xkcd:violet'
+
+    pauseTime = 0.01 # Pause duration between plot refreshes
+
     while lastAdded != goal:
         if numIter >= maxIters:
             raise Exception("Maximum number of iterations reached and goal still not found")
@@ -206,27 +198,36 @@ if __name__ == "__main__":
             lastAdded = qNew
 
             # Plot q-new on the map
-            ax.add_patch(patches.Circle(qNew, facecolor='xkcd:bright green'))
+            ax.add_patch(patches.Circle(qNew, facecolor=pointColor))
             # Plot the edge between q-new and its parent on the map
             path = Path([closestNode.point, qNew], [Path.MOVETO, Path.LINETO])
-            pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
+            pathpatch = patches.PathPatch(path, facecolor='None', edgecolor=edgeColor)
             ax.add_patch(pathpatch)
 
             # Try to reach the goal if q-new is close to it
             if getDistance(qNew, goal) < stepLen and isColliding(edges, (qNew, goal)) == False:
-                nodeList.append(Node(goal, qNew))
+                nodeList.append(Node(goal, nodeList[-1]))
                 lastAdded = goal
                 # Plot q-new on the map
-                ax.add_patch(patches.Circle(goal, facecolor='xkcd:bright green'))
+                ax.add_patch(patches.Circle(goal, facecolor=pointColor))
                 # Plot the edge between q-new and its parent on the map
                 path = Path([goal, qNew], [Path.MOVETO, Path.LINETO])
-                pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
+                pathpatch = patches.PathPatch(path, facecolor='None', edgecolor=edgeColor)
                 ax.add_patch(pathpatch)
             
             numIter += 1
-            plt.pause(0.01)
+            plt.pause(pauseTime)
             
 
-    # Goal has been found
+    # Trace the path from goal to start in red
+    curr = nodeList[-1]
+    while curr.point != start:
+        ax.add_patch(patches.Circle(curr.point, facecolor='xkcd:red', linewidth=5))
+        curr = curr.parent
+        plt.pause(pauseTime)
+
+    ax.add_patch(patches.Circle(curr.point, facecolor='xkcd:red', linewidth=5))
+    plt.pause(pauseTime)
+
 
     plt.show()
