@@ -29,9 +29,18 @@ def orientation(a, b, c):
         return 1
     return 2
 
+def onEdge(p1, p2, p3):
+    if p2[0] <= max(p1[0], p3[0]) and p2[0] >= min(p1[0], p3[0] and p2[1]) <= max(p1[1], p3[1]) and p2[1] >= min(p1[1], p3[1]):
+        return True
+    return False
+
 def areEqual(v1, v2):
     return (v1[0] == v2[0] and v1[1] == v2[1]) 
 
+# a1 => p1
+# a2 => q1
+# b1 => p2
+# b2 => q2
 def isIntersecting(e1, e2):
     a1 = e1[0]
     a2 = e1[1]
@@ -42,9 +51,17 @@ def isIntersecting(e1, e2):
     o3 = orientation(b1, b2, a1)
     o4 = orientation(b1, b2, a2)
 
-    if (areEqual(a1, b1) or areEqual(a1, b2) or areEqual(a2, b1) or areEqual(a2, b2)):
+    if o1 != o2 and o3 != o4:
         return True
-    if (o1 != o2 and o3 != o4):
+    if o1 == 0 and onEdge(a1, b1, a2):
+        return True
+    if o2 == 0 and onEdge(a1, b2, a2):
+        return True
+    if o3 == 0 and onEdge(b1, a1, b2):
+        return True
+    if o4 == 0 and onEdge(b1, a2, b2):
+        return True
+    if (areEqual(a1, b1) or areEqual(a1, b2) or areEqual(a2, b1) or areEqual(a2, b2)):
         return True
     return False
 
@@ -139,7 +156,7 @@ if __name__ == "__main__":
     bounds = (600, 600) # Default bounds of 2D world space
     random.seed(time.time())
 
-    for i in range(0,5):
+    for i in range(0, 50):
         # Generate q-rand
         qRand = (random.randint(0, bounds[0]), random.randint(0, bounds[1]))
 
@@ -166,18 +183,21 @@ if __name__ == "__main__":
             u = (v[0] / norm, v[1] / norm)
             qNew = (closestNode.point[0] + stepLen * u[0], closestNode.point[1] + stepLen * u[1])
 
-        # Plot q-new on the map
-        ax.add_patch(patches.Circle(qNew, facecolor='xkcd:bright green'))
-        # Plot the edge between q-new and its parent on the map
-        path = Path([closestNode.point, qNew], [Path.MOVETO, Path.LINETO])
-        pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
-        ax.add_patch(pathpatch)
-
         # Check q-new for collisions
+        hasCollision = False
         for edge in edges:
             if isIntersecting(edge, (closestNode.point, qNew)):
-                raise Exception("qnew intersects with an obstacle") 
-            else:
-                nodeList.append(Node(qNew, closestNode))
+                hasCollision = True
+
+        # Add q-new to the RRT if no collisions are detected
+        if not hasCollision:
+            nodeList.append(Node(qNew, closestNode))
+
+            # Plot q-new on the map
+            ax.add_patch(patches.Circle(qNew, facecolor='xkcd:bright green'))
+            # Plot the edge between q-new and its parent on the map
+            path = Path([closestNode.point, qNew], [Path.MOVETO, Path.LINETO])
+            pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
+            ax.add_patch(pathpatch)
 
     plt.show()
