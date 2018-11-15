@@ -27,7 +27,7 @@ def tracePath(nodeList):
     plt.pause(pauseTime)
 
 
-def expandRRT(qRand, nodeList, edges):
+def expandRRT(qRand, nodeList, edges, pointColor, edgeColor):
     # Locate the closet node to q-rand in the RRT
     closestNode = nodeList[0]
     minDist = getDistance(qRand, closestNode.point)
@@ -66,22 +66,11 @@ def expandRRT(qRand, nodeList, edges):
         pathpatch = patches.PathPatch(path, facecolor='None', edgecolor=edgeColor)
         ax.add_patch(pathpatch)
 
-        # # Try to reach the goal if q-new is close to it
-        # if getDistance(qNew, goal) < stepLen and isColliding(edges, (qNew, goal)) == False:
-        #     nodeList.append(Node(goal, nodeList[-1]))
-        #     lastAdded = goal
-        #     # Plot q-new on the map
-        #     ax.add_patch(patches.Circle(goal, facecolor=pointColor))
-        #     # Plot the edge between q-new and its parent on the map
-        #     path = Path([goal, qNew], [Path.MOVETO, Path.LINETO])
-        #     pathpatch = patches.PathPatch(path, facecolor='None', edgecolor=edgeColor)
-        #     ax.add_patch(pathpatch)
-        
         plt.pause(pauseTime)
         return qNew
     return
         
-def connect(qNew, goal, nodeList, edges):
+def connect(qNew, goal, nodeList, edges, pointColor, edgeColor):
     if getDistance(qNew, goal) < stepLen and isColliding(edges, (qNew, goal)) == False:
         nodeList.append(Node(goal, nodeList[-1]))
         lastAdded = goal
@@ -122,10 +111,6 @@ def onEdge(p1, p2, p3):
 def areEqual(v1, v2):
     return (v1[0] == v2[0] and v1[1] == v2[1]) 
 
-# a1 => p1
-# a2 => q1
-# b1 => p2
-# b2 => q2
 def isIntersecting(e1, e2):
     a1 = e1[0]
     a2 = e1[1]
@@ -238,34 +223,35 @@ if __name__ == "__main__":
     maxIters = 5000
     threshold = 20 # Threshold before trying to reach the goal in one step
 
-    pointColor = 'xkcd:bright green'
-    edgeColor = 'xkcd:violet'
+    startPointColor = 'xkcd:bright green'
+    startEdgeColor = 'xkcd:violet'
+    goalPointColor = 'xkcd:olive green'
+    goalEdgeColor = 'xkcd:maroon'
 
     pauseTime = 0.01 # Pause duration between plot refreshes
 
-    # while lastAdded != goal:
-        # if numIter >= maxIters:
-        #     raise Exception("Maximum number of iterations reached and goal still not found")
-        # Generate q-rand
     while True:
+        if numIter >= maxIters:
+            raise Exception("Maximum number of iterations reached and goal still not found")
+        # Generate q-rand
         qRand = (random.randint(0, bounds[0]), random.randint(0, bounds[1]))
         # Grow start RRT
-        qNew = expandRRT(qRand, startList, edges)
+        qNew = expandRRT(qRand, startList, edges, startPointColor, startEdgeColor)
         # Grow goal RRT towards qnew if it exists, otherwise grow it towards a random point
         if not qNew:
             qRand = (random.randint(0, bounds[0]), random.randint(0, bounds[1]))
-            expandRRT(qRand, goalList, edges)
+            expandRRT(qRand, goalList, edges, goalPointColor, goalEdgeColor)
         else:
             # qNew successfully added, check if we can connect
             lastNode = goalList[-1].point
-            if connect(qNew, lastNode, goalList, edges):
+            if connect(qNew, lastNode, goalList, edges, goalPointColor, goalEdgeColor):
                 print "found sol"
                 break
             else:
-                qNew = expandRRT(qNew, goalList, edges)
+                qNew = expandRRT(qNew, goalList, edges, goalPointColor, goalEdgeColor)
                 if qNew:
                     lastNode = startList[-1].point
-                    if connect(qNew, lastNode, startList, edges):
+                    if connect(qNew, lastNode, startList, edges, startPointColor, startEdgeColor):
                         print "found sol"
                         break
 
@@ -276,14 +262,5 @@ if __name__ == "__main__":
     # Trace the path from goal to start in red
     tracePath(startList)
     tracePath(goalList)
-    # curr = startList[-1]
-    # while curr.point != start:
-    #     ax.add_patch(patches.Circle(curr.point, facecolor='xkcd:red', linewidth=5))
-    #     curr = curr.parent
-    #     plt.pause(pauseTime)
-
-    # ax.add_patch(patches.Circle(curr.point, facecolor='xkcd:red', linewidth=5))
-    # plt.pause(pauseTime)
-
 
     plt.show()
