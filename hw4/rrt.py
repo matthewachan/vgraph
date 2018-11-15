@@ -134,8 +134,8 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots()
     path = build_obstacle_course(args.obstacle_path, ax)
-    verts = path.vertices[1:-1] # Ignore first (0, 0) coordinate
-    codes = path.codes[1:-1]
+    verts = path.vertices[1:] # Ignore first (0, 0) coordinate
+    codes = path.codes[1:]
 
     # Construct a list containing all obstacle edges
     start = verts[0]
@@ -158,12 +158,19 @@ if __name__ == "__main__":
     nodeList = [rrt]
     lastAdded = rrt.point 
 
+    # Keep track of iterations
+    numIter = 0
+
     # Initialize constants
-    stepLen = 10 # Default step length
+    stepLen = 30 # Default step length
     bounds = (600, 600) # Default bounds of 2D world space
     random.seed(time.time())
+    maxIters = 5000
+    threshold = 20 # Threshold before trying to reach the goal in one step
 
     while lastAdded != goal:
+        if numIter >= maxIters:
+            raise Exception("Maximum number of iterations reached and goal still not found")
         # Generate q-rand
         qRand = (random.randint(0, bounds[0]), random.randint(0, bounds[1]))
 
@@ -206,7 +213,7 @@ if __name__ == "__main__":
             ax.add_patch(pathpatch)
 
             # Try to reach the goal if q-new is close to it
-            if getDistance(qNew, goal) < 10 and isColliding(edges, (qNew, goal)) == False:
+            if getDistance(qNew, goal) < stepLen and isColliding(edges, (qNew, goal)) == False:
                 nodeList.append(Node(goal, qNew))
                 lastAdded = goal
                 # Plot q-new on the map
@@ -215,7 +222,11 @@ if __name__ == "__main__":
                 path = Path([goal, qNew], [Path.MOVETO, Path.LINETO])
                 pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
                 ax.add_patch(pathpatch)
-
+            
+            numIter += 1
             plt.pause(0.01)
+            
+
+    # Goal has been found
 
     plt.show()
