@@ -17,6 +17,12 @@ class Node:
         self.point = point
         self.parent = parent
 
+def isColliding(obstacles, newEdge): 
+    for edge in obstacles:
+        if isIntersecting(edge, newEdge):
+            return True
+    return False
+
 def getDistance(a, b):
     return np.sqrt(np.power(a[0] - b[0], 2) + np.power(a[1] - b[1], 2))
 
@@ -150,13 +156,14 @@ if __name__ == "__main__":
     # Initialize RRT
     rrt = Node(start, None)
     nodeList = [rrt]
+    lastAdded = rrt.point 
 
     # Initialize constants
-    stepLen = 20 # Default step length
+    stepLen = 10 # Default step length
     bounds = (600, 600) # Default bounds of 2D world space
     random.seed(time.time())
 
-    for i in range(0, 50):
+    while lastAdded != goal:
         # Generate q-rand
         qRand = (random.randint(0, bounds[0]), random.randint(0, bounds[1]))
 
@@ -172,10 +179,10 @@ if __name__ == "__main__":
         # Locate q-new
         qNew = ()
 
-        # Set q-new to equal q-rand if the distance between them is shorter 
-        # than the step length
+        # Find a new q-rand if the distance between the closest point and
+        # q-rand is too small
         if getDistance(qRand, closestNode.point) < stepLen:
-            qNew = qRand
+            continue
         # Linear algebra to find a point a given distance away on a line
         else:
             v = (qRand[0] - closestNode.point[0], qRand[1] - closestNode.point[1])
@@ -184,14 +191,12 @@ if __name__ == "__main__":
             qNew = (closestNode.point[0] + stepLen * u[0], closestNode.point[1] + stepLen * u[1])
 
         # Check q-new for collisions
-        hasCollision = False
-        for edge in edges:
-            if isIntersecting(edge, (closestNode.point, qNew)):
-                hasCollision = True
+        hasCollision = isColliding(edges, (closestNode.point, qNew))
 
         # Add q-new to the RRT if no collisions are detected
         if not hasCollision:
             nodeList.append(Node(qNew, closestNode))
+            lastAdded = qNew
 
             # Plot q-new on the map
             ax.add_patch(patches.Circle(qNew, facecolor='xkcd:bright green'))
@@ -199,5 +204,18 @@ if __name__ == "__main__":
             path = Path([closestNode.point, qNew], [Path.MOVETO, Path.LINETO])
             pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
             ax.add_patch(pathpatch)
+
+            # Try to reach the goal if q-new is close to it
+            if getDistance(qNew, goal) < 10 and isColliding(edges, (qNew, goal)) == False:
+                nodeList.append(Node(goal, qNew))
+                lastAdded = goal
+                # Plot q-new on the map
+                ax.add_patch(patches.Circle(goal, facecolor='xkcd:bright green'))
+                # Plot the edge between q-new and its parent on the map
+                path = Path([goal, qNew], [Path.MOVETO, Path.LINETO])
+                pathpatch = patches.PathPatch(path, facecolor='None', edgecolor='xkcd:violet')
+                ax.add_patch(pathpatch)
+
+            plt.pause(0.01)
 
     plt.show()
