@@ -1,6 +1,6 @@
-# Program to load obstacle course for Lab 4 - RRT
+# Program to build an RRT from a start to a goal position
 
-# usage:  python rrt.py obstacles_file start_goal_file
+# usage:  python rrt.py obstacles_file start_goal_file step_length max_iters
 
 
 from __future__ import division
@@ -117,6 +117,10 @@ if __name__ == "__main__":
                         help="File path for obstacle set")
     parser.add_argument('start_goal_path',
                         help="File path for obstacle set")
+    parser.add_argument('step_length',
+                        help="Step length not specified")
+    parser.add_argument('max_iters',
+                        help="Max number of iterations not specified")
     args = parser.parse_args()
 
     fig, ax = plt.subplots()
@@ -149,10 +153,10 @@ if __name__ == "__main__":
     numIter = 0
 
     # Initialize constants
-    stepLen = 30 # Default step length
+    stepLen = int(args.step_length) # Default step length
     bounds = (600, 600) # Default bounds of 2D world space
     random.seed(time.time())
-    maxIters = 5000
+    maxIters = int(args.max_iters)
     threshold = 20 # Threshold before trying to reach the goal in one step
 
     pointColor = 'xkcd:bright green'
