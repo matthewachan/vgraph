@@ -10,7 +10,10 @@ class Follower:
     def __init__(self):
         self.bridge = cv_bridge.CvBridge()
         cv2.namedWindow('window', 1)
-        self.image_sub = rospy.Subscriber('camera/rgb/image_raw', Image, self.image_callback)
+        self.image_sub = rospy.Subscriber('camera/rgb/image_raw', 
+                Image, self.image_callback)
+        self.cmd_vel_pub = rospy.Publisher('cmd_vel_mux/input/teleop', 
+                Twist, queue_size=1)
         self.twist = Twist()
 
     def image_callback(self, msg):
@@ -37,6 +40,12 @@ class Follower:
             cy = int(M['m01'] / M['m00'])
             red = (0, 0, 255)
             cv2.circle(image, (cx, cy), 20, red, -1)
+
+            err = cx - w/2
+            self.twist.linear.x = 0.2
+            self.twist.angular.z = -float(err) / 100
+            self.cmd_vel_pub.publish(self.twist)
+
             
 
         cv2.imshow('window', image)
