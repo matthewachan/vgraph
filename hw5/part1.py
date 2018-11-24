@@ -2,6 +2,8 @@
 import rospy
 from sensor_msgs.msg import Image
 import cv2, cv_bridge
+import numpy
+
 
 class Follower:
 
@@ -12,7 +14,13 @@ class Follower:
 
     def image_callback(self, msg):
         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        cv2.imshow('window', image)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+        lower_yellow = numpy.array([20, 115, 170])
+        upper_yellow = numpy.array([40, 255, 190])
+        mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+        masked = cv2.bitwise_and(image, image, mask=mask)
+        cv2.imshow('window', mask)
         cv2.waitKey(3)
 
 rospy.init_node('follower')
