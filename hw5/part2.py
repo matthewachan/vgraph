@@ -27,6 +27,12 @@ class Follower:
         self.twist = Twist()
         self.rate = 50
         self.r = rospy.Rate(self.rate)
+        self.color = 'y'
+        self.timer = 0
+        self.duration = rospy.Duration(6)
+
+    def timer_callback(self, event):
+        self.color = 'y'
 
     def image_callback(self, msg):
         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -63,34 +69,48 @@ class Follower:
             mask[0:search_top, 0:w] = 0
             mask[search_bot:h, 0:w] = 0
 
-        # Plot red circle on the center of the line
         if not np.sum(masks['r'][search_top:search_bot, 0:w]) > THRESHOLD:
-            M = cv2.moments(y_mask)
-            if M['m00'] > 0:
-                cx = int(M['m10'] / M['m00'])
-                cy = int(M['m01'] / M['m00'])
-                red = (0, 0, 255)
-                cv2.circle(image, (cx, cy), 20, red, -1)
+            # Blue detected
+            if np.sum(masks['b'][search_top:search_bot, 0:w]) > THRESHOLD and self.color != 'b':
+                self.color = 'b'
+                self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
+            # Green detected
+            elif np.sum(masks['g'][search_top:search_bot, 0:w]) > THRESHOLD and self.color != 'g':
+                self.color = 'g'
+                self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
 
-                err = cx - w/2
+            mask_w = 5 * w / 12
+            if self.color == 'b':
+                y_mask[search_top:search_bot, 0:mask_w] = 0
+            elif self.color == 'g':
+                y_mask[search_top:search_bot, 1 - mask_w :w] = 0
 
-                self.twist.linear.x = 0.2
+            if np.sum(masks['y'][search_top:search_bot, 0:w]) > THRESHOLD:
+                M = cv2.moments(y_mask)
+                if M['m00'] > 0:
+                    cx = int(M['m10'] / M['m00'])
+                    cy = int(M['m01'] / M['m00'])
+                    red = (0, 0, 255)
+                    cv2.circle(image, (cx, cy), 20, red, -1)
 
-                # Blue detected
-                if np.sum(masks['b'][search_top:search_bot, 0:w]) > THRESHOLD:
-                    self.twist.angular.z = -0.2
-                # Green detected
-                elif np.sum(masks['g'][search_top:search_bot, 0:w]) > THRESHOLD:
-                    self.twist.angular.z = 0.1
-                else:
+                    err = cx - w/2
+
+                    self.twist.linear.x = 0.2
+
                     self.twist.angular.z = -float(err) / 100
 
+                    self.cmd_vel_pub.publish(self.twist)
+            else:
+                self.twist.linear.x = 0.2
+
+                self.twist.angular.z = 0 
                 self.cmd_vel_pub.publish(self.twist)
+
 
         # cv2.imshow('blue', b_mask)
         # cv2.imshow('green', g_mask)
         # cv2.imshow('red', r_mask)
-        # cv2.imshow('yellow', y_mask)
+        cv2.imshow('yellow', y_mask)
         cv2.imshow('img', image)
         cv2.waitKey(3)
 
