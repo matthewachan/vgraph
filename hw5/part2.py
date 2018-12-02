@@ -20,19 +20,26 @@ class Follower:
     def __init__(self):
         self.bridge = cv_bridge.CvBridge()
         cv2.namedWindow('window', 1)
+
         self.image_sub = rospy.Subscriber('camera/rgb/image_raw', 
                 Image, self.image_callback)
         self.cmd_vel_pub = rospy.Publisher('cmd_vel_mux/input/teleop', 
                 Twist, queue_size=1)
+
         self.twist = Twist()
         self.rate = 50
         self.r = rospy.Rate(self.rate)
+
         self.color = 'y'
         self.timer = 0
         self.duration = rospy.Duration(6)
+        self.shutdown = False
 
     def timer_callback(self, event):
         self.color = 'y'
+
+    def shutdown_callback(self, event):
+        self.shutdown = True
 
     def image_callback(self, msg):
         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -69,7 +76,13 @@ class Follower:
             mask[0:search_top, 0:w] = 0
             mask[search_bot:h, 0:w] = 0
 
-        if not np.sum(masks['r'][search_top:search_bot, 0:w]) > THRESHOLD:
+
+        # Check stop condition
+        if np.sum(masks['r'][search_top:search_bot, 0:w]) > THRESHOLD and self.color != 'r':
+            self.color = 'r'
+            self.timer = rospy.Timer(rospy.Duration(8), self.shutdown_callback, oneshot=True)
+
+        if not self.color == 'r':
             # Blue detected
             if np.sum(masks['b'][search_top:search_bot, 0:w]) > THRESHOLD and self.color != 'b':
                 self.color = 'b'
@@ -85,6 +98,7 @@ class Follower:
             elif self.color == 'g':
                 y_mask[search_top:search_bot, 1 - mask_w :w] = 0
 
+            # Follow yellow line
             if np.sum(masks['y'][search_top:search_bot, 0:w]) > THRESHOLD:
                 M = cv2.moments(y_mask)
                 if M['m00'] > 0:
@@ -100,11 +114,20 @@ class Follower:
                     self.twist.angular.z = -float(err) / 100
 
                     self.cmd_vel_pub.publish(self.twist)
+            # Blindly walk forward if no yellow line found
             else:
                 self.twist.linear.x = 0.2
 
                 self.twist.angular.z = 0 
                 self.cmd_vel_pub.publish(self.twist)
+
+        # Walk forward for a period of time
+        elif self.color == 'r' and not self.shutdown:
+            self.twist.linear.x = 0.2
+
+            self.twist.angular.z = -0.05
+            self.cmd_vel_pub.publish(self.twist)
+
 
 
         # cv2.imshow('blue', b_mask)
