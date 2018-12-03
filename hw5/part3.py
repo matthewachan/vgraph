@@ -99,17 +99,14 @@ class Follower:
             # print "min_difff is " + min_diff
             if min_diff < ERR_THRESH:
                 if ldiff == min_diff:
-                    print "LEFT"
                     self.cmd = 'l'
                     self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
                 elif rdiff == min_diff:
-                    print "RIGHT"
                     self.cmd = 'r'
                     self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
                 else:
-                    print "STOP"
                     self.cmd = 's'
-                    self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
+                    self.timer = rospy.Timer(rospy.Duration(4), self.shutdown_callback, oneshot=True)
 
         if self.cmd != '':
             mask_w = 5 * w / 12
@@ -144,20 +141,18 @@ class Follower:
                 self.twist.angular.z = 0 
                 self.cmd_vel_pub.publish(self.twist)
 
-#         # Walk forward for a period of time
-#         elif self.color == 'r' and not self.shutdown:
-#             self.twist.linear.x = 0.2
+        # Walk forward for a period of time
+        elif self.cmd == 's' and not self.shutdown:
+            self.twist.linear.x = 0.2
 
-#             self.twist.angular.z = -0.05
-#             self.cmd_vel_pub.publish(self.twist)
+            self.twist.angular.z = -0.05
+            self.cmd_vel_pub.publish(self.twist)
 
-        # print np.sum(masks['r'][search_top:search_bot, 0:w]) / (255 * 3)
 
         # cv2.imshow('blue', b_mask)
         # cv2.imshow('green', g_mask)
         cv2.imshow('red', r_mask)
         cv2.imshow('yellow', y_mask)
-        # cv2.imwrite('right.jpg', r_mask)
         cv2.imshow('img', image)
         cv2.waitKey(3)
 
