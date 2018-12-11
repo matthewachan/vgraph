@@ -43,6 +43,14 @@ class Follower:
     def timer_callback(self, event):
         self.cmd = ''
 
+    def left_callback(self, event):
+        self.cmd = 'l'
+        self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
+
+    def right_callback(self, event):
+        self.cmd = 'r'
+        self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
+
     def shutdown_callback(self, event):
         self.shutdown = True
 
@@ -70,12 +78,8 @@ class Follower:
             mask[search_bot:h, 0:w] = 0
 
 
-        # print np.sum(masks['y'][search_top:search_bot, 0:w]) / (255 * 3) 
         # Check for red markers
-        # if np.sum(masks['r'][search_top:search_bot, 0:w]) > THRESHOLD and self.cmd == '':
         if np.sum(masks['y'][search_top:search_bot, 0:w]) / (255 * 3) > THRESHOLD and self.cmd == '':
-            # cv2.imwrite('stop2.jpg', y_mask)
-            # return
             rdiff = np.sqrt(cv2.absdiff(self.right, y_mask))
             ldiff = np.sqrt(cv2.absdiff(self.left, y_mask))
             sdiff = np.sqrt(cv2.absdiff(self.stop, y_mask))
@@ -84,14 +88,11 @@ class Follower:
             sdiff = cv2.sumElems(sdiff)[0]
             diffs = [rdiff, ldiff, sdiff]
             min_diff = np.amin(diffs)
-            # print min_diff
             if min_diff < ERR_THRESH:
                 if ldiff == min_diff:
-                    self.cmd = 'l'
-                    self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
+                    self.timer = rospy.Timer(rospy.Duration(2), self.left_callback, oneshot=True)
                 elif rdiff == min_diff:
-                    self.cmd = 'r'
-                    self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
+                    self.timer = rospy.Timer(rospy.Duration(2), self.right_callback, oneshot=True)
                 else:
                     self.cmd = 's'
                     self.timer = rospy.Timer(rospy.Duration(4), self.shutdown_callback, oneshot=True)
@@ -106,7 +107,6 @@ class Follower:
 
         # Follow yellow line
         if not self.cmd == 's':
-        # if not np.sum(masks['r'][search_top:search_bot, 0:w]) / (255 * 3) > THRESHOLD:
             if np.sum(masks['y'][search_top:search_bot, 0:w]) > THRESHOLD:
                 M = cv2.moments(y_mask)
                 if M['m00'] > 0:
@@ -122,6 +122,7 @@ class Follower:
                     self.twist.angular.z = -float(err) / 100
 
                     self.cmd_vel_pub.publish(self.twist)
+
             # Blindly walk forward if no yellow line found
             else:
                 self.twist.linear.x = 0.2
