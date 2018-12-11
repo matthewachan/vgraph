@@ -28,6 +28,7 @@ class Follower:
         self.rate = 50
         self.r = rospy.Rate(self.rate)
         self.cmd = ''
+        self.setFlag = False
         self.timer = 0
         self.duration = rospy.Duration(6)
         self.shutdown = False
@@ -42,6 +43,7 @@ class Follower:
 
     def timer_callback(self, event):
         self.cmd = ''
+        self.setFlag = False
 
     def left_callback(self, event):
         self.cmd = 'l'
@@ -79,7 +81,7 @@ class Follower:
 
 
         # Check for red markers
-        if np.sum(masks['y'][search_top:search_bot, 0:w]) / (255 * 3) > THRESHOLD and self.cmd == '':
+        if np.sum(masks['y'][search_top:search_bot, 0:w]) / (255 * 3) > THRESHOLD and not self.setFlag:
             rdiff = np.sqrt(cv2.absdiff(self.right, y_mask))
             ldiff = np.sqrt(cv2.absdiff(self.left, y_mask))
             sdiff = np.sqrt(cv2.absdiff(self.stop, y_mask))
@@ -89,13 +91,17 @@ class Follower:
             diffs = [rdiff, ldiff, sdiff]
             min_diff = np.amin(diffs)
             if min_diff < ERR_THRESH:
+                self.setFlag = True
                 if ldiff == min_diff:
+                    print "Turning left..."
                     self.timer = rospy.Timer(rospy.Duration(2), self.left_callback, oneshot=True)
                 elif rdiff == min_diff:
+                    print "Turning right..."
                     self.timer = rospy.Timer(rospy.Duration(2), self.right_callback, oneshot=True)
                 else:
+                    print "Stopping..."
                     self.cmd = 's'
-                    self.timer = rospy.Timer(rospy.Duration(4), self.shutdown_callback, oneshot=True)
+                    self.timer = rospy.Timer(rospy.Duration(3), self.shutdown_callback, oneshot=True)
 
         if self.cmd != '':
             mask_w = 5 * w / 12
