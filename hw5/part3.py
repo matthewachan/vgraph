@@ -57,22 +57,14 @@ class Follower:
 
         y_mask = cv2.inRange(hsv, np.array([H_YELLOW[0], S_LOWER, V_LOWER]),
                 np.array([H_YELLOW[1], S_UPPER, V_UPPER]))
-        # b_mask = cv2.inRange(hsv, np.array([H_BLUE[0], S_LOWER, V_LOWER]),
-        #         np.array([H_BLUE[1], S_UPPER, V_UPPER]))
-        # g_mask = cv2.inRange(hsv, np.array([H_GREEN[0], S_LOWER, V_LOWER]),
-        #         np.array([H_GREEN[1], S_UPPER, V_UPPER]))
         r_mask = cv2.inRange(hsv, np.array([H_RED[0], S_LOWER, V_LOWER]),
                 np.array([H_RED[1], S_UPPER, V_UPPER]))
         masks = {
                 'y': y_mask,
-                # 'b': b_mask,
-                # 'g': g_mask,
                 'r': r_mask
         }
 
         y_masked = cv2.bitwise_and(image, image, mask=y_mask)
-        # b_masked = cv2.bitwise_and(image, image, mask=b_mask)
-        # g_masked = cv2.bitwise_and(image, image, mask=g_mask)
         r_masked = cv2.bitwise_and(image, image, mask=r_mask)
 
         # Retain only 20 pixel rows of masked image data
@@ -86,7 +78,6 @@ class Follower:
 
 
         # Check for red markers
-        # if np.sum(masks['r'][search_top:search_bot, 0:w]) > THRESHOLD and self.cmd == '':
         if np.sum(masks['r'][search_top:search_bot, 0:w]) / (255 * 3) > THRESHOLD and self.cmd == '':
             rdiff = np.sqrt(cv2.absdiff(self.right, r_mask))
             ldiff = np.sqrt(cv2.absdiff(self.left, r_mask))
@@ -96,15 +87,17 @@ class Follower:
             sdiff = cv2.sumElems(sdiff)[0]
             diffs = [rdiff, ldiff, sdiff]
             min_diff = np.amin(diffs)
-            # print "min_difff is " + min_diff
             if min_diff < ERR_THRESH:
                 if ldiff == min_diff:
+                    print "Turning left..."
                     self.cmd = 'l'
                     self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
                 elif rdiff == min_diff:
+                    print "Turning right..."
                     self.cmd = 'r'
                     self.timer = rospy.Timer(self.duration, self.timer_callback, oneshot=True)
                 else:
+                    print "Stopping..."
                     self.cmd = 's'
                     self.timer = rospy.Timer(rospy.Duration(4), self.shutdown_callback, oneshot=True)
 
@@ -118,7 +111,6 @@ class Follower:
 
         # Follow yellow line
         if not self.cmd == 's':
-        # if not np.sum(masks['r'][search_top:search_bot, 0:w]) / (255 * 3) > THRESHOLD:
             if np.sum(masks['y'][search_top:search_bot, 0:w]) > THRESHOLD:
                 M = cv2.moments(y_mask)
                 if M['m00'] > 0:
@@ -149,8 +141,6 @@ class Follower:
             self.cmd_vel_pub.publish(self.twist)
 
 
-        # cv2.imshow('blue', b_mask)
-        # cv2.imshow('green', g_mask)
         cv2.imshow('red', r_mask)
         cv2.imshow('yellow', y_mask)
         cv2.imshow('img', image)
