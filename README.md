@@ -57,6 +57,20 @@ This function runs Djikstra's Algorithm on all of the edges in the VGRAPH to fin
 
 Return: A 2d array of vertices along the shortest path
 
+## Meta
+
+**Author**: [Matthew Chan](https://github.com/matthewachan)
+
+Distributed under the GNU GPL v3.0 license. See ``LICENSE`` for more information.
+
+## Contributing
+
+1. [Fork](https://github.com/matthewachan/vgraph/fork) the repo
+2. Create a feature branch (e.g. `git checkout -b feature/new_feature`)
+3. Add & commit your changes
+4. Push to your feature branch (e.g. `git push origin feature/new_feature`)
+5. Create a new pull request
+
 ## Video
 
 The YouTube video for a working demo of vgraph is available at: [https://youtu.be/9vp4PJip-Vs](https://youtu.be/9vp4PJip-Vs)
