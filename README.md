@@ -1,20 +1,22 @@
 # VGRAPH
 > Visibility Graph path planning for mobile base robots
 
-vgraph takes two config files as input, specifying robot start and goal positions + obstacle locations, and builds a [visibility graph](https://en.wikipedia.org/wiki/Visibility_graph) which the robot uses to plan a path to the goal.
+VGRAPH takes two config files as input (specifying robot start and goal positions + obstacle locations) and builds a [visibility graph](https://en.wikipedia.org/wiki/Visibility_graph) which the robot uses to plan a path from the start to the goal.
 
-The idea behind vgraph is as follows:
-1. The convex hulls of each obstacle are computed
-2. These hulls are grown by the size of the robot
-3. Each corner of the grown hulls is a vertex and an n(n-1) edges are drawn between the n vertices
+The process for VGRAPH is as follows:
+1. Convex hulls of each obstacle are computed
+2. Each convex hull is grown by the size of the robot
+3. Each corner of the grown hulls is a vertex in the graph and *n(n-1)* edges are drawn between the *n* vertices
 4. Edges that intersect (not including collinear intersections) are eliminated
-5. Djikstra's algorithm is used to find the "shortest" path from the start to the goal (each of the edges in the vgraph represents a valid path)
+5. Djikstra's algorithm is used to find the "shortest" path from the start to the goal (each of the edges in the graph represents a valid path)
 
 ![](etc/screencap.gif)
 
 ## Installation
 
-ROS Indigo and rViz are required to run the simulation. Installation instructions can be found [here](http://wiki.ros.org/indigo/Installation/Ubuntu).
+[ROS Indigo](http://wiki.ros.org/indigo) and [rViz](http://wiki.ros.org/rviz) are required to run the simulation.
+
+Installation instructions can be found [here](http://wiki.ros.org/indigo/Installation/Ubuntu).
 
 ## Usage
 
@@ -43,7 +45,7 @@ The `__init__` function sets up the ROS node and publishes to cmd\_vel and vgrap
 
 ### draw\_hulls(self, grown\_obstacles, marker\_arr)
 
-Given a 3d list of x and y coordinates corresponding to all grown obstacles, this function computes the convex hull for each obstacle and draws it in rViz using Markers.
+Given a 3D list of x and y coordinates corresponding to all grown obstacles, this function computes the convex hull for each obstacle and draws it in rViz using Markers.
 
 ### draw\_graph(self, marker\_arr)
 
@@ -55,7 +57,7 @@ Reference used in logic for checking edge intersections: [https://www.geeksforge
 
 This function runs Djikstra's Algorithm on all of the edges in the VGRAPH to find the shortest path and draws the edges the make up the shortest path in rViz.
 
-Return: A 2d array of vertices along the shortest path
+Return: A 2D array of vertices along the shortest path
 
 ## Meta
 
