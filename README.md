@@ -7,7 +7,7 @@ The process for VGRAPH is as follows:
 1. Convex hulls of each obstacle are computed
 2. Each convex hull is grown by the size of the robot
 3. Each corner of the grown hulls is a vertex in the graph and *n(n-1)* edges are drawn between the *n* vertices
-4. Edges that intersect (not including collinear intersections) are eliminated
+4. Edges that intersect with the grown convex hulls (not including collinear intersections) are eliminated
 5. Djikstra's algorithm is used to find the "shortest" path from the start to the goal (each of the edges in the graph represents a valid path)
 
 ![](etc/screencap.gif)
